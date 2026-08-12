@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Target, Library, Plus, Search } from "lucide-react";
 import type { StandardListItem } from "@/lib/db/queries";
 import Sleeve from "./Sleeve";
+import RandomQuote from "./RandomQuote";
 
 export default function Wall({ items }: { items: StandardListItem[] }) {
   const [q, setQ] = useState("");
@@ -28,18 +29,17 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
   return (
     <div className="wrap">
       <header className="wall-head">
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-          <div>
-            <div className="eyebrow">Collection · Woodshed</div>
-            <div className="sub">叩き込むための棚</div>
-            <div className="count"><b>{items.length}</b> 曲</div>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div className="wall-top">
+          <div className="eyebrow">Collection · Woodshed</div>
+          <div className="wall-actions">
             <Link href="/drill" className="btn" title="ドリル" aria-label="ドリル"><Target size={18} strokeWidth={2} /></Link>
             <Link href="/groups" className="btn" title="グループ" aria-label="グループ"><Library size={18} strokeWidth={2} /></Link>
             <Link href="/standards/new" className="btn btn-accent" title="曲を追加" aria-label="曲を追加"><Plus size={18} strokeWidth={2.5} /></Link>
           </div>
         </div>
+
+        <RandomQuote />
+        <div className="count"><b>{items.length}</b> 曲</div>
 
         <label className="search"><Search size={16} strokeWidth={2} style={{ color: "var(--muted)", flex: "0 0 auto" }} />
           <input placeholder="検索" value={q} onChange={(e) => setQ(e.target.value)} />
