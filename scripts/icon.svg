@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#0b0f14"/>
+  <rect x="24" y="24" width="464" height="464" rx="92" fill="none" stroke="#26323f" stroke-width="4"/>
+  <!-- brass note -->
+  <g fill="#d9a441">
+    <circle cx="188" cy="356" r="46"/>
+    <circle cx="330" cy="330" r="46"/>
+    <rect x="226" y="150" width="20" height="196" rx="6"/>
+    <rect x="368" y="124" width="20" height="196" rx="6"/>
+    <path d="M226 150 L388 124 L388 168 L226 194 Z"/>
+  </g>
+  <text x="256" y="452" text-anchor="middle" font-family="Georgia, serif" font-size="60" fill="#8ea0b2" font-style="italic">woodshed</text>
+</svg>
