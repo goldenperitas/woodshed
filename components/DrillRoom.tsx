@@ -26,8 +26,21 @@ function orderDue(items: DrillItem[], mode: "name" | "audio") {
   return [...due, ...unseen, ...later];
 }
 
-export default function DrillRoom({ deck }: { deck: DrillItem[] }) {
+export default function DrillRoom({
+  deck,
+  initialGroup = null,
+}: {
+  deck: DrillItem[];
+  initialGroup?: string | null;
+}) {
+  const allGroups = useMemo(
+    () => [...new Set(deck.flatMap((d) => d.groupNames))].sort(),
+    [deck],
+  );
   const [mode, setMode] = useState<"name" | "audio">("name");
+  const [group, setGroup] = useState<string | null>(
+    initialGroup && allGroups.includes(initialGroup) ? initialGroup : null,
+  );
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [done, setDone] = useState(false);
@@ -36,15 +49,20 @@ export default function DrillRoom({ deck }: { deck: DrillItem[] }) {
   const [aplaying, setAplaying] = useState(false);
 
   const queue = useMemo(() => {
-    const eligible = mode === "audio" ? deck.filter((d) => d.head) : deck;
+    let eligible = group ? deck.filter((d) => d.groupNames.includes(group)) : deck;
+    if (mode === "audio") eligible = eligible.filter((d) => d.head);
     return orderDue(eligible, mode);
-  }, [deck, mode]);
+  }, [deck, mode, group]);
 
   const item = queue[idx];
   const accent = item ? accentFor(item.title) : "#E1541B";
 
   function switchMode(m: "name" | "audio") {
     setMode(m); setIdx(0); setRevealed(false); setDone(false); stopHead();
+  }
+
+  function switchGroup(g: string | null) {
+    setGroup(g); setIdx(0); setRevealed(false); setDone(false); stopHead();
   }
 
   function reveal() { setRevealed(true); stopHead(); }
@@ -80,6 +98,15 @@ export default function DrillRoom({ deck }: { deck: DrillItem[] }) {
           </div>
           <Link href="/" className="back">やめる</Link>
         </div>
+
+        {allGroups.length > 0 && (
+          <div className="chips" style={{ marginTop: 10 }}>
+            <button className={`chip ${group === null ? "on" : ""}`} onClick={() => switchGroup(null)}>すべて</button>
+            {allGroups.map((g) => (
+              <button key={g} className={`chip ${group === g ? "on" : ""}`} onClick={() => switchGroup(group === g ? null : g)}>{g}</button>
+            ))}
+          </div>
+        )}
 
         {done || !item ? (
           <div style={{ flex: 1, display: "grid", placeItems: "center", textAlign: "center" }}>

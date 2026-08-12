@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Target } from "lucide-react";
 import { createGroup, deleteGroup } from "@/app/actions";
 
 type G = { id: number; name: string; description: string | null; count: number };
@@ -43,17 +45,28 @@ export default function GroupManager({ groups }: { groups: G[] }) {
                 <div className="font-semibold">{g.name} <span className="text-xs" style={{ color: "var(--muted)" }}>({g.count})</span></div>
                 {g.description && <div className="truncate text-xs" style={{ color: "var(--muted)" }}>{g.description}</div>}
               </div>
-              <button
-                className="btn btn-ghost btn-danger text-xs"
-                onClick={async () => {
-                  if (confirm(`グループ「${g.name}」を削除しますか？（曲は消えません）`)) {
-                    await deleteGroup(g.id);
-                    router.refresh();
-                  }
-                }}
-              >
-                削除
-              </button>
+              <div className="flex items-center gap-2">
+                {g.count > 0 && (
+                  <Link
+                    href={`/drill?group=${encodeURIComponent(g.name)}`}
+                    className="btn btn-ghost text-xs"
+                    title="この群をドリル"
+                  >
+                    <Target size={14} strokeWidth={2} /> ドリル
+                  </Link>
+                )}
+                <button
+                  className="btn btn-ghost btn-danger text-xs"
+                  onClick={async () => {
+                    if (confirm(`グループ「${g.name}」を削除しますか？（曲は消えません）`)) {
+                      await deleteGroup(g.id);
+                      router.refresh();
+                    }
+                  }}
+                >
+                  削除
+                </button>
+              </div>
             </li>
           ))}
         </ul>
