@@ -224,7 +224,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 }
 .disc.spinning { animation-play-state: running; }
 .disc-label { position: absolute; left: 50%; top: 50%; width: 41%; height: 41%; transform: translate(-50%, -50%); border-radius: 50%; background: var(--paper); color: var(--ink); display: grid; place-items: center; box-shadow: 0 0 0 4px var(--accent), 0 0 0 5px rgba(0,0,0,.5); text-align: center; padding: 6px; overflow: hidden; }
-.disc-label img { width: 100%; height: 100%; object-fit: cover; }
+.disc-label img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .disc-label .lt { font-family: "Anton"; font-size: clamp(.7rem, 3.6vw, 1rem); line-height: .82; }
 .hole { position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; transform: translate(-50%, -50%); border-radius: 50%; background: var(--ink-deep); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); z-index: 2; }
 .sheen { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; background: radial-gradient(38% 30% at 32% 26%, rgba(255,255,255,.14), transparent 60%); }
