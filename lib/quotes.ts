@@ -28,4 +28,16 @@ export const QUOTES: Quote[] = [
   { text: "In the woodshed is where you earn the bandstand.", by: "Jazz proverb" },
   { text: "Amateurs practice until they get it right; masters practice until they can't get it wrong.", by: "Practice proverb" },
   { text: "Genius is one percent inspiration and ninety-nine percent perspiration.", by: "Thomas Edison" },
+
+  // Added 2026-08 — each fact-checked to a documented source before inclusion.
+  { text: "Imitate, assimilate, innovate.", by: "Clark Terry" },
+  { text: "You can't improvise on nothing, man; you gotta improvise on something.", by: "Charles Mingus" },
+  { text: "I believe in things that are developed through hard work.", by: "Bill Evans" },
+  { text: "Virtuosity is the first sign of morality in a musician. It means you're serious enough to practice.", by: "Wynton Marsalis" },
+  { text: "Jazz is about being in the moment, at every moment.", by: "Herbie Hancock" },
+  { text: "There are two kinds of music. Good music, and the other kind.", by: "Duke Ellington" },
+  { text: "My music is the spiritual expression of what I am — my faith, my knowledge, my being.", by: "John Coltrane" },
+  { text: "If you play a tune and a person don't tap their feet, don't play the tune.", by: "Count Basie" },
+  { text: "Just don't give up trying to do what you really want to do.", by: "Ella Fitzgerald" },
+  { text: "Ars longa, vita brevis.", by: "Hippocrates" },
 ];
