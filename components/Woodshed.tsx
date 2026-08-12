@@ -133,7 +133,7 @@ export default function Woodshed({
       <div className="stage">
         <div className="turntable">
           <div className={`disc ${playing ? "spinning" : ""}`} style={{ ["--spin" as string]: spin }}>
-            <div className="label">
+            <div className="disc-label">
               {standard.artworkPath
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={"/" + standard.artworkPath} alt="" />

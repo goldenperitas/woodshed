@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createStandard } from "@/app/actions";
-import { STATUS } from "@/lib/constants";
+import StatusPicker from "@/components/StatusPicker";
 
 export default function NewStandardPage() {
   return (
@@ -44,13 +44,7 @@ export default function NewStandardPage() {
         </div>
         <div>
           <label className="label">ステップ</label>
-          <select name="status" className="select" defaultValue={0}>
-            {([0, 1, 2, 3] as const).map((s) => (
-              <option key={s} value={s}>
-                {STATUS[s].short} {STATUS[s].label} — {STATUS[s].hint}
-              </option>
-            ))}
-          </select>
+          <StatusPicker />
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="calledOften" value="1" />
