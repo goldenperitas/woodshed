@@ -6,6 +6,7 @@ import { Play, Pause } from "lucide-react";
 import type { DrillItem } from "@/lib/db/queries";
 import { accentFor } from "@/lib/sleeve";
 import { logReview } from "@/app/actions";
+import { usePlayer } from "@/components/player/PlayerProvider";
 
 const RATINGS = [
   { v: 1, label: "もう一度", cls: "again" },
@@ -47,6 +48,7 @@ export default function DrillRoom({
   const audioRef = useRef<HTMLAudioElement>(null);
   const [arate, setArate] = useState(1);
   const [aplaying, setAplaying] = useState(false);
+  const player = usePlayer();
 
   const queue = useMemo(() => {
     let eligible = group ? deck.filter((d) => d.groupNames.includes(group)) : deck;
@@ -77,6 +79,7 @@ export default function DrillRoom({
 
   function playHead() {
     const a = audioRef.current; if (!a || !item?.head) return;
+    player.pause(); // silence any background tune from the global player
     a.playbackRate = arate;
     const anyA = a as unknown as Record<string, unknown>;
     anyA.preservesPitch = true; anyA.webkitPreservesPitch = true;

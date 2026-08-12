@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Play, Pause, Plus, X, Star, Pencil, Trash2, Download, Check, PenLine } from "lucide-react";
 import type { Recording, Region, Standard } from "@/lib/db/schema";
@@ -11,28 +11,33 @@ import {
   addRegion, deleteRegion, setReference, deleteRecording, updateRecording, addNote,
 } from "@/app/actions";
 import { saveOffline, removeOffline, getOfflineBlob, listOfflineKeys } from "@/lib/offline";
+import { usePlayer } from "@/components/player/PlayerProvider";
 
 const RATES = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 const R = 46;
 const C = 2 * Math.PI * R;
 
+type LocalLoop = { n: string; s: number; e: number } | null;
+
 export default function Woodshed({
   standard, recordings, regions,
 }: { standard: Standard; recordings: Recording[]; regions: Region[] }) {
   const router = useRouter();
+  const player = usePlayer();
   const accent = accentFor(standard.title);
-  const audioRef = useRef<HTMLAudioElement>(null);
 
   const [takeIdx, setTakeIdx] = useState(0);
   const take = recordings[takeIdx];
 
+  // src is pre-resolved (offline blob or /path) so play() fires inside the
+  // user gesture — resolving lazily would break iOS autoplay.
   const [src, setSrc] = useState<string | null>(null);
   const [offlineSet, setOfflineSet] = useState<Set<string>>(new Set());
-  const [playing, setPlaying] = useState(false);
-  const [pos, setPos] = useState(0);
-  const [dur, setDur] = useState(0);
-  const [rate, setRate] = useState(1);
-  const [loop, setLoop] = useState<{ n: string; s: number; e: number } | null>(null);
+
+  // Page-local cues; when this take is the active global track they mirror the
+  // player, otherwise they are what a fresh play() will start from.
+  const [localRate, setLocalRate] = useState(1);
+  const [localLoop, setLocalLoop] = useState<LocalLoop>(null);
 
   const [markA, setMarkA] = useState<number | null>(null);
   const [markB, setMarkB] = useState<number | null>(null);
@@ -45,41 +50,63 @@ export default function Woodshed({
 
   const takeRegions = take ? regions.filter((r) => r.recordingId === take.id) : [];
 
+  // Is this take the one currently loaded in the global player?
+  const isThis = !!take && player.isCurrent(take.filePath);
+  const playing = isThis && player.playing;
+  const pos = isThis ? player.pos : 0;
+  const dur = isThis ? player.dur : take?.durationSec ?? 0;
+  const rate = isThis ? player.rate : localRate;
+
+  // Track the player's current src so we don't revoke a blob URL it's still using.
+  const playerSrcRef = useRef<string | null>(null);
+  playerSrcRef.current = player.track?.src ?? null;
+
   useEffect(() => { listOfflineKeys().then((ks) => setOfflineSet(new Set(ks))); }, []);
 
-  // Load active take (offline blob if we have it, else the file on disk).
+  // Resolve the selected take's src, and reset page-local cues for it.
   useEffect(() => {
     if (!take) { setSrc(null); return; }
-    let revoked: string | null = null;
-    setLoop(null); setPos(0); setPlaying(false);
+    let created: string | null = null;
+    setLocalLoop(null); setMarkA(null); setMarkB(null); setNoteAt(null);
     getOfflineBlob(take.filePath).then((blob) => {
-      if (blob) { const u = URL.createObjectURL(blob); revoked = u; setSrc(u); }
+      if (blob) { created = URL.createObjectURL(blob); setSrc(created); }
       else setSrc("/" + take.filePath);
     });
-    return () => { if (revoked) URL.revokeObjectURL(revoked); };
+    return () => {
+      if (created && playerSrcRef.current !== created) URL.revokeObjectURL(created);
+    };
   }, [take]);
 
-  useEffect(() => {
-    const a = audioRef.current; if (!a) return;
-    a.playbackRate = rate;
-    const anyA = a as unknown as Record<string, unknown>;
-    anyA.preservesPitch = true; anyA.webkitPreservesPitch = true;
-  }, [rate, src]);
+  const loadThis = useCallback((opts: { autoplay?: boolean; loop?: { s: number; e: number } | null } = {}) => {
+    if (!take || !src) return;
+    player.load(
+      {
+        id: take.filePath, src,
+        title: standard.title,
+        subtitle: take.performer || take.originalName || "無名の録音",
+        accent, artworkPath: standard.artworkPath,
+        href: `/standards/${standard.id}`,
+      },
+      {
+        autoplay: opts.autoplay ?? true,
+        rate: localRate,
+        loop: opts.loop !== undefined ? opts.loop : (localLoop ? { s: localLoop.s, e: localLoop.e } : null),
+      },
+    );
+  }, [take, src, standard, accent, localRate, localLoop, player]);
 
-  const onTime = () => {
-    const a = audioRef.current; if (!a) return;
-    if (loop && a.currentTime >= loop.e) a.currentTime = loop.s;
-    setPos(a.currentTime);
-  };
-  const togglePlay = () => { const a = audioRef.current; if (!a) return; a.paused ? a.play() : a.pause(); };
-  const seek = (t: number) => { const a = audioRef.current; if (!a) return; a.currentTime = t; setPos(t); };
+  const togglePlay = () => { if (isThis) player.toggle(); else loadThis({ autoplay: true }); };
+  const seek = (t: number) => { if (isThis) player.seek(t); else loadThis({ autoplay: true }); };
 
   const playRegion = (r: Region) => {
-    const a = audioRef.current; if (!a) return;
-    setLoop({ n: r.label || "loop", s: r.startSec, e: r.endSec });
-    a.currentTime = r.startSec; a.play();
+    const L = { n: r.label || "loop", s: r.startSec, e: r.endSec };
+    setLocalLoop(L);
+    if (isThis) { player.setLoop({ s: L.s, e: L.e }); player.seek(L.s); player.play(); }
+    else loadThis({ autoplay: true, loop: { s: L.s, e: L.e } });
   };
-  const clearLoop = () => setLoop(null);
+  const clearLoop = () => { setLocalLoop(null); if (isThis) player.setLoop(null); };
+
+  const setRate = (r: number) => { setLocalRate(r); if (isThis) player.setRate(r); };
 
   const saveRegion = async () => {
     if (markA === null || markB === null || !take) return;
@@ -112,23 +139,13 @@ export default function Woodshed({
   // groove when playing and travels inward toward the center as it progresses.
   const armOn = playing || pos > 0.3;
   const armAngle = armOn && dur ? -12 + (pos / dur) * 18 : -34;
-  const arcStyle: React.CSSProperties | undefined = loop && dur
-    ? { strokeDasharray: `${(((loop.e - loop.s) / dur) * C).toFixed(2)} ${((1 - (loop.e - loop.s) / dur) * C).toFixed(2)}`,
-        strokeDashoffset: (-(loop.s / dur) * C).toFixed(2) }
+  const arcStyle: React.CSSProperties | undefined = localLoop && dur
+    ? { strokeDasharray: `${(((localLoop.e - localLoop.s) / dur) * C).toFixed(2)} ${((1 - (localLoop.e - localLoop.s) / dur) * C).toFixed(2)}`,
+        strokeDashoffset: (-(localLoop.s / dur) * C).toFixed(2) }
     : undefined;
 
   return (
     <div style={{ ["--accent" as string]: accent }}>
-      <audio
-        ref={audioRef}
-        src={src ?? undefined}
-        preload="metadata"
-        onLoadedMetadata={(e) => { const d = e.currentTarget.duration; if (Number.isFinite(d)) setDur(d); }}
-        onTimeUpdate={onTime}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-      />
-
       {/* turntable */}
       <div className="stage">
         <div className="turntable">
@@ -144,7 +161,7 @@ export default function Woodshed({
           <div className="sheen" />
           <svg className="ring" viewBox="0 0 100 100">
             <circle className="track" cx="50" cy="50" r={R} />
-            <circle className={`arc ${loop ? "on" : ""}`} cx="50" cy="50" r={R} style={arcStyle} />
+            <circle className={`arc ${localLoop ? "on" : ""}`} cx="50" cy="50" r={R} style={arcStyle} />
           </svg>
           <div className="tonearm" style={{ ["--arm" as string]: `${armAngle}deg` }}>
             <div className="bar2" /><div className="pivot" /><div className="head" />
@@ -187,7 +204,7 @@ export default function Woodshed({
             </button>
             <div className="pbar-wrap">
               <div className="pbar" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * (dur || 0)); }}>
-                {loop && dur ? <div className="ploop" style={{ left: `${(loop.s / dur) * 100}%`, width: `${((loop.e - loop.s) / dur) * 100}%` }} /> : null}
+                {localLoop && dur ? <div className="ploop" style={{ left: `${(localLoop.s / dur) * 100}%`, width: `${((localLoop.e - localLoop.s) / dur) * 100}%` }} /> : null}
                 <div className="pfill" style={{ width: `${dur ? (pos / dur) * 100 : 0}%` }} />
               </div>
               <div className="ptime"><span>{fmtTime(pos)}</span><span>{fmtTime(dur)}</span></div>
@@ -203,11 +220,11 @@ export default function Woodshed({
           </div>
 
           {/* loop regions */}
-          <div className="blabel"><span className="l">Loop 区間</span><span className="v">{loop ? `${loop.n} ${fmtTime(loop.s)}–${fmtTime(loop.e)}` : "—"}</span></div>
+          <div className="blabel"><span className="l">Loop 区間</span><span className="v">{localLoop ? `${localLoop.n} ${fmtTime(localLoop.s)}–${fmtTime(localLoop.e)}` : "—"}</span></div>
           <div className="chips">
             {takeRegions.map((r) => (
               <span key={r.id} style={{ display: "inline-flex" }}>
-                <button className={`chip ${loop && loop.s === r.startSec && loop.e === r.endSec ? "on" : ""}`}
+                <button className={`chip ${localLoop && localLoop.s === r.startSec && localLoop.e === r.endSec ? "on" : ""}`}
                   style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }} onClick={() => playRegion(r)}>
                   {r.label || "区間"} {fmtTime(r.startSec)}–{fmtTime(r.endSec)}
                 </button>
@@ -215,7 +232,7 @@ export default function Woodshed({
                   onClick={async () => { await deleteRegion(r.id, standard.id); clearLoop(); router.refresh(); }}><X size={13} strokeWidth={2} /></button>
               </span>
             ))}
-            {loop && <button className="chip" onClick={clearLoop}>解除</button>}
+            {localLoop && <button className="chip" onClick={clearLoop}>解除</button>}
           </div>
           <div className="chips" style={{ marginTop: 8 }}>
             <button className="chip" onClick={() => setMarkA(pos)}>A {markA !== null ? `= ${fmtTime(markA)}` : "記録"}</button>
@@ -233,7 +250,7 @@ export default function Woodshed({
             <button className="btn" onClick={toggleOffline}>{offlineSet.has(take.filePath) ? <><Check size={15} strokeWidth={2} /> オフライン</> : <><Download size={15} strokeWidth={2} /> オフライン保存</>}</button>
             {take.isReference !== 1 && <button className="btn" onClick={async () => { await setReference(take.id, standard.id); router.refresh(); }}><Star size={15} strokeWidth={2} /> 基準にする</button>}
             <button className="btn" onClick={() => setShowTakeEdit((v) => !v)}><Pencil size={15} strokeWidth={2} /> テイク情報</button>
-            <button className="btn btn-danger" aria-label="テイクを削除" onClick={async () => { if (confirm("このテイクを削除？")) { if (offlineSet.has(take.filePath)) await removeOffline(take.filePath); await deleteRecording(take.id, standard.id); setTakeIdx(0); router.refresh(); } }}><Trash2 size={15} strokeWidth={2} /></button>
+            <button className="btn btn-danger" aria-label="テイクを削除" onClick={async () => { if (confirm("このテイクを削除？")) { if (isThis) player.stop(); if (offlineSet.has(take.filePath)) await removeOffline(take.filePath); await deleteRecording(take.id, standard.id); setTakeIdx(0); router.refresh(); } }}><Trash2 size={15} strokeWidth={2} /></button>
           </div>
 
           {noteAt !== null && (
