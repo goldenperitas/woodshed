@@ -238,7 +238,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 .tonearm .pivot { position: absolute; right: -6px; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: #201c15; border: 1px solid #000; }
 .tonearm .head { position: absolute; left: -4px; top: -3px; width: 14px; height: 16px; border-radius: 2px; background: #2a2620; border: 1px solid #000; }
 
-.meta { text-align: center; margin-top: 14px; }
+.meta { text-align: center; margin-top: 32px; }
 .meta h1 { font-family: "Anton"; font-size: clamp(2rem, 10vw, 3rem); line-height: .9; }
 .meta .liner { font-family: "SpaceMono", monospace; font-size: 11px; letter-spacing: .12em; color: var(--muted); margin-top: 6px; }
 
