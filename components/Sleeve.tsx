@@ -24,15 +24,17 @@ export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number
   const status = (
     <div className="jstatus">
       <Disc size={15} strokeWidth={2.4} className={hasTakes ? "on" : "off"} />
-      {[1, 2, 3].map((n) => (
-        <Star
-          key={n}
-          size={14}
-          strokeWidth={2}
-          fill={s.status >= n ? "currentColor" : "none"}
-          className={s.status >= n ? "on" : "off"}
-        />
-      ))}
+      <span className="jstars">
+        {[1, 2, 3].map((n) => (
+          <Star
+            key={n}
+            size={14}
+            strokeWidth={2}
+            fill={s.status >= n ? "currentColor" : "none"}
+            className={s.status >= n ? "on" : "off"}
+          />
+        ))}
+      </span>
     </div>
   );
 

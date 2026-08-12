@@ -193,7 +193,8 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 .jacket.art .stag { color: var(--paper); background: rgba(0,0,0,.5); }
 
 /* Status strip: ◎ record + S1/S2/S3 stars, in the tune's own colour */
-.jstatus { position: absolute; top: 12px; left: 11px; right: 11px; display: flex; align-items: center; gap: 4px; z-index: 3; }
+.jstatus { position: absolute; top: 12px; left: 11px; right: 11px; display: flex; align-items: center; justify-content: space-between; z-index: 3; }
+.jstars { display: flex; align-items: center; gap: 4px; }
 .jstatus .on { color: var(--ja); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ja) 62%, transparent)); }
 .jacket.typo .jstatus { top: 15px; }
 .jacket.typo .jstatus .off { color: rgba(20,16,8,.15); }

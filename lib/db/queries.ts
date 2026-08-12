@@ -38,7 +38,6 @@ export function listStandards(): StandardListItem[] {
       status: standards.status,
       calledOften: standards.calledOften,
       artworkPath: standards.artworkPath,
-      recordingCount: sql<number>`(SELECT COUNT(*) FROM recordings r WHERE r.standard_id = ${standards.id})`,
       nextDue: sql<number | null>`(SELECT MIN(next_due) FROM review_log rl WHERE rl.standard_id = ${standards.id})`,
     })
     .from(standards)
@@ -61,7 +60,21 @@ export function listStandards(): StandardListItem[] {
     byStd.set(g.standardId, arr);
   }
 
-  return rows.map((r) => ({ ...r, groupNames: byStd.get(r.id) ?? [] }));
+  // Take counts per standard (a correlated subquery in the select above
+  // returned 0 for every row under drizzle, so tally it explicitly).
+  const rc = db
+    .select({ sid: recordings.standardId, c: sql<number>`COUNT(*)` })
+    .from(recordings)
+    .groupBy(recordings.standardId)
+    .all();
+  const rcByStd = new Map<number, number>();
+  for (const r of rc) rcByStd.set(r.sid, Number(r.c));
+
+  return rows.map((r) => ({
+    ...r,
+    groupNames: byStd.get(r.id) ?? [],
+    recordingCount: rcByStd.get(r.id) ?? 0,
+  }));
 }
 
 export function getStandard(id: number) {
