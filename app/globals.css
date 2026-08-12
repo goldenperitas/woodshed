@@ -203,7 +203,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 }
 .room-ground { background: var(--ink-deep); min-height: 100vh; background-image: radial-gradient(80% 50% at 50% 26%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 60%); }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.back { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; background: transparent; border: 1px solid var(--line); color: var(--muted-2); border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
+.back { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; background: transparent; border: 0; color: var(--muted-2); border-radius: 8px; padding: 8px 12px 8px 2px; font-size: 13px; cursor: pointer; }
 .statusset { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
 .stage { display: grid; place-items: center; padding: 22px 0 6px; }

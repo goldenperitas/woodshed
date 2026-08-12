@@ -7,7 +7,7 @@ export default function NewStandardPage() {
   return (
     <div className="wrap pb-8">
       <div className="mb-4 flex items-center gap-3">
-        <Link href="/" className="btn btn-ghost">
+        <Link href="/" className="back">
           <ArrowLeft size={15} strokeWidth={2} /> 戻る
         </Link>
         <h1 className="text-lg font-bold">曲を追加</h1>

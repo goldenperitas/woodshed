@@ -10,7 +10,7 @@ export default function GroupsPage() {
   return (
     <div className="wrap pb-8">
       <div className="mb-4 flex items-center gap-3">
-        <Link href="/" className="btn btn-ghost"><ArrowLeft size={15} strokeWidth={2} /> 戻る</Link>
+        <Link href="/" className="back"><ArrowLeft size={15} strokeWidth={2} /> 戻る</Link>
       </div>
       <header className="mb-4">
         <h1 className="text-xl font-bold">グループ</h1>
