@@ -208,6 +208,18 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 
 .stage { display: grid; place-items: center; padding: 22px 0 6px; }
 .turntable { position: relative; width: min(70vw, 300px); height: min(70vw, 300px); }
+/* Indirect light: a warm bright rim hugging the whole record edge, with a
+   stronger glow from below. Static (doesn't spin) so it reads as lighting, and
+   it lifts the disc off a same-toned background. */
+.turntable::before {
+  content: ""; position: absolute; inset: -14px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side,
+    transparent 87%,
+    rgba(255,240,218,.38) 92%,
+    rgba(255,238,214,.95) 97%,
+    rgba(255,238,214,0) 100%);
+  box-shadow: 0 0 42px 3px rgba(255,228,190,.24), 0 22px 58px 2px rgba(255,214,158,.30);
+}
 .disc {
   position: absolute; inset: 0; border-radius: 50%;
   background: repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.05) 0 1px, transparent 1px 3.2px),
