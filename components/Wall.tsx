@@ -30,7 +30,7 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
     <div className="wrap">
       <header className="wall-head">
         <div className="wall-top">
-          <div className="eyebrow">Collection · Woodshed</div>
+          <div className="eyebrow">Woodshed</div>
           <div className="wall-actions">
             <Link href="/listening" className="btn" title="Listening Room" aria-label="Listening Room"><Radio size={18} strokeWidth={2} /></Link>
             <Link href="/drill" className="btn" title="ドリル" aria-label="ドリル"><Target size={18} strokeWidth={2} /></Link>
