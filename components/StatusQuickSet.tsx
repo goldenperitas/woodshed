@@ -20,7 +20,7 @@ export default function StatusQuickSet({
 
   return (
     <div className="statusset">
-      {([1, 2, 3] as const).map((v) => {
+      {([0, 1, 2, 3] as const).map((v) => {
         const active = s === v;
         return (
           <button

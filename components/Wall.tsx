@@ -9,13 +9,13 @@ import RandomQuote from "./RandomQuote";
 
 export default function Wall({ items }: { items: StandardListItem[] }) {
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<string | null>(null); // "often" | "1" | "2" | "3" | null
+  const [filter, setFilter] = useState<string | null>(null); // "often" | "0" | "1" | "2" | "3" | null
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return items.filter((it) => {
       if (filter === "often" && it.calledOften !== 1) return false;
-      if (filter === "1" || filter === "2" || filter === "3") {
+      if (filter === "0" || filter === "1" || filter === "2" || filter === "3") {
         if (it.status !== Number(filter)) return false;
       }
       if (needle) {
@@ -48,7 +48,7 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
         <div className="tabs">
           <button className={`tab ${filter === null ? "on" : ""}`} onClick={() => setFilter(null)}>すべて</button>
           <button className={`tab ${filter === "often" ? "on" : ""}`} onClick={() => setFilter(filter === "often" ? null : "often")}>頻出</button>
-          {["1", "2", "3"].map((s) => (
+          {["0", "1", "2", "3"].map((s) => (
             <button key={s} className={`tab mono ${filter === s ? "on" : ""}`} onClick={() => setFilter(filter === s ? null : s)}>S{s}</button>
           ))}
         </div>

@@ -45,7 +45,7 @@ export async function createStandard(fd: FormData) {
       form: strOrNull(fd.get("form")),
       feel: strOrNull(fd.get("feel")),
       tempoBpm: numOrNull(fd.get("tempoBpm")),
-      status: numOrNull(fd.get("status")) ?? 1,
+      status: numOrNull(fd.get("status")) ?? 0,
       calledOften: fd.get("calledOften") ? 1 : 0,
       createdAt: t,
       updatedAt: t,
@@ -67,7 +67,7 @@ export async function updateStandardMeta(id: number, fd: FormData) {
       form: strOrNull(fd.get("form")),
       feel: strOrNull(fd.get("feel")),
       tempoBpm: numOrNull(fd.get("tempoBpm")),
-      status: numOrNull(fd.get("status")) ?? 1,
+      status: numOrNull(fd.get("status")) ?? 0,
       calledOften: fd.get("calledOften") ? 1 : 0,
       updatedAt: now(),
     })

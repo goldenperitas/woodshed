@@ -44,8 +44,8 @@ export default function NewStandardPage() {
         </div>
         <div>
           <label className="label">ステップ</label>
-          <select name="status" className="select" defaultValue={1}>
-            {([1, 2, 3] as const).map((s) => (
+          <select name="status" className="select" defaultValue={0}>
+            {([0, 1, 2, 3] as const).map((s) => (
               <option key={s} value={s}>
                 {STATUS[s].short} {STATUS[s].label} — {STATUS[s].hint}
               </option>

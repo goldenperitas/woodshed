@@ -1,7 +1,8 @@
 import { sqliteTable, integer, text, real, primaryKey } from "drizzle-orm/sqlite-core";
 
 // The main table. A standard you want to drill into your head.
-// status: 1 = knows it exists, 2 = knows chords / can play the head, 3 = gig-ready.
+// status: 0 = not yet known (default), 1 = knows it exists, 2 = knows chords /
+// can play the head, 3 = gig-ready.
 export const standards = sqliteTable("standards", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   title: text("title").notNull(),
@@ -10,7 +11,7 @@ export const standards = sqliteTable("standards", {
   form: text("form"), // e.g. "AABA 32", "Blues 12", "ABAC"
   feel: text("feel"), // e.g. "med swing", "bossa", "ballad", "up"
   tempoBpm: integer("tempo_bpm"),
-  status: integer("status").notNull().default(1), // 1 | 2 | 3
+  status: integer("status").notNull().default(0), // 0 | 1 | 2 | 3
   calledOften: integer("called_often").notNull().default(0), // 0 | 1, jam-frequent flag
   lyrics: text("lyrics"),
   chordInterpretation: text("chord_interpretation"), // free-form, your own words
