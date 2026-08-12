@@ -1,3 +1,4 @@
+import { Disc, Star } from "lucide-react";
 import { accentFor } from "@/lib/sleeve";
 
 type SleeveData = {
@@ -6,6 +7,7 @@ type SleeveData = {
   key: string | null;
   form: string | null;
   status: number;
+  recordingCount: number;
   artworkPath: string | null;
 };
 
@@ -15,18 +17,31 @@ export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number
   const accent = accentFor(s.title);
   // Staggered top-to-bottom reveal; capped so big collections stay snappy.
   const delay = `${Math.min(index, 16) * 45}ms`;
-  const stag = (
-    <div className="marks">
-      <span className="stag">S{s.status}</span>
+
+  // Status strip: ◎ record glows in the tune's colour once a take exists,
+  // then S1/S2/S3 as stars that fill + glow as each step is reached.
+  const hasTakes = s.recordingCount > 0;
+  const status = (
+    <div className="jstatus">
+      <Disc size={15} strokeWidth={2.4} className={hasTakes ? "on" : "off"} />
+      {[1, 2, 3].map((n) => (
+        <Star
+          key={n}
+          size={14}
+          strokeWidth={2}
+          fill={s.status >= n ? "currentColor" : "none"}
+          className={s.status >= n ? "on" : "off"}
+        />
+      ))}
     </div>
   );
 
   if (s.artworkPath) {
     return (
-      <div className="jacket art" style={{ animationDelay: delay }}>
+      <div className="jacket art" style={{ ["--ja" as string]: accent, animationDelay: delay }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={"/" + s.artworkPath} alt={s.title} />
-        {stag}
+        {status}
         <div className="pstrip">
           <span className="ptitle">{s.title}</span>
         </div>
@@ -40,8 +55,7 @@ export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number
       style={{ ["--ja" as string]: accent, animationDelay: delay }}
     >
       <span className="bar" />
-      {s.composer && <span className="jcomp">{s.composer.toUpperCase()}</span>}
-      {stag}
+      {status}
       <span className="jtitle">{s.title}</span>
       <span className="jkey">{[s.key, s.form].filter(Boolean).join(" · ")}</span>
     </div>
