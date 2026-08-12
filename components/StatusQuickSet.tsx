@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Star } from "lucide-react";
 import { STATUS } from "@/lib/constants";
 import { setStatus, toggleCalledOften } from "@/app/actions";
 
@@ -18,20 +19,13 @@ export default function StatusQuickSet({
   const [, start] = useTransition();
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="statusset">
       {([1, 2, 3] as const).map((v) => {
         const active = s === v;
         return (
           <button
             key={v}
-            className="chip"
-            style={{
-              cursor: "pointer",
-              color: active ? "#0b0f14" : STATUS[v].color,
-              background: active ? STATUS[v].color : "transparent",
-              borderColor: STATUS[v].color,
-              fontWeight: active ? 700 : 400,
-            }}
+            className={`chip${active ? " on" : ""}`}
             onClick={() => {
               setS(v);
               start(() => setStatus(id, v));
@@ -42,21 +36,14 @@ export default function StatusQuickSet({
         );
       })}
       <button
-        className="chip"
-        style={{
-          cursor: "pointer",
-          color: star ? "#0b0f14" : "var(--accent)",
-          background: star ? "var(--accent)" : "transparent",
-          borderColor: "var(--accent)",
-          fontWeight: star ? 700 : 400,
-        }}
+        className={`chip${star ? " on" : ""}`}
         onClick={() => {
           const nv = !star;
           setStar(nv);
           start(() => toggleCalledOften(id, nv));
         }}
       >
-        ★ 頻出
+        <Star size={13} strokeWidth={2} fill={star ? "currentColor" : "none"} /> 頻出
       </button>
     </div>
   );

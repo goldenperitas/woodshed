@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getStandard } from "@/lib/db/queries";
+import { accentFor } from "@/lib/sleeve";
 import { saveChords, saveLyrics } from "@/app/actions";
 import Woodshed from "@/components/Woodshed";
 import AudioUploader from "@/components/AudioUploader";
@@ -19,13 +21,13 @@ export default async function StandardPage({ params }: { params: Promise<{ id: s
   const data = getStandard(Number(id));
   if (!data) notFound();
   const { standard: std, recordings, regions, notes, allGroups, memberGroupIds } = data;
+  const accent = accentFor(std.title);
 
   return (
-    <div className="room-ground">
+    <div className="room-ground" style={{ ["--accent" as string]: accent } as React.CSSProperties}>
       <div className="room">
         <div className="topbar">
-          <Link href="/" className="back">↩ 棚に戻る</Link>
-          <StatusQuickSet id={std.id} status={std.status} calledOften={std.calledOften === 1} />
+          <Link href="/" className="back"><ArrowLeft size={15} strokeWidth={2} /> 棚に戻る</Link>
         </div>
 
         <Woodshed standard={std} recordings={recordings} regions={regions} />
@@ -46,6 +48,10 @@ export default async function StandardPage({ params }: { params: Promise<{ id: s
         <section className="sec"><h4>歌詞（メロディ記憶用）</h4>
           <AutoSaveText initial={std.lyrics ?? ""} onSave={saveLyrics.bind(null, std.id)}
             placeholder="歌詞を書いておくとメロが定着しやすい" minHeight={110} />
+        </section>
+
+        <section className="sec"><h4>ステータス</h4>
+          <StatusQuickSet id={std.id} status={std.status} calledOften={std.calledOften === 1} />
         </section>
 
         <section className="sec"><h4>ジャケット</h4>

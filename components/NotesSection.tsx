@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Clock } from "lucide-react";
 import type { Note } from "@/lib/db/schema";
 import { NOTE_TAGS, NOTE_TAG_LABEL } from "@/lib/constants";
 import { fmtTime } from "@/lib/format";
@@ -61,7 +62,7 @@ export default function NotesSection({
                 <span className="chip">{NOTE_TAG_LABEL[n.tag ?? "general"] ?? n.tag}</span>
                 {n.timestampSec !== null && (
                   <span className="chip" style={{ color: "var(--accent2)" }}>
-                    🕮 {fmtTime(n.timestampSec)}
+                    <Clock size={12} strokeWidth={2} /> {fmtTime(n.timestampSec)}
                   </span>
                 )}
                 <button

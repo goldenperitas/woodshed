@@ -1,13 +1,14 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createStandard } from "@/app/actions";
 import { STATUS } from "@/lib/constants";
 
 export default function NewStandardPage() {
   return (
-    <div className="pb-8">
+    <div className="wrap pb-8">
       <div className="mb-4 flex items-center gap-3">
         <Link href="/" className="btn btn-ghost">
-          ← 戻る
+          <ArrowLeft size={15} strokeWidth={2} /> 戻る
         </Link>
         <h1 className="text-lg font-bold">曲を追加</h1>
       </div>

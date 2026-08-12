@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Upload, X } from "lucide-react";
 
 export default function AudioUploader({ standardId }: { standardId: number }) {
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function AudioUploader({ standardId }: { standardId: number }) {
           color: "var(--muted)",
         }}
       >
-        <span className="text-2xl">＋♪</span>
+        <Upload size={26} strokeWidth={1.75} style={{ color: "var(--muted)" }} />
         <span className="mt-1">音源をドラッグ＆ドロップ / タップして選択</span>
         <span className="text-xs">mp3 · m4a · wav など（複数可）</span>
       </div>
@@ -89,10 +90,11 @@ export default function AudioUploader({ standardId }: { standardId: number }) {
                 <span className="truncate">{f.name}</span>
                 <button
                   className="text-xs"
-                  style={{ color: "var(--muted)" }}
+                  aria-label="除外"
+                  style={{ color: "var(--muted)", display: "inline-flex", alignItems: "center" }}
                   onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}
                 >
-                  ✕
+                  <X size={14} strokeWidth={2} />
                 </button>
               </li>
             ))}

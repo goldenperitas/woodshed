@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { Play, Pause } from "lucide-react";
 import type { DrillItem } from "@/lib/db/queries";
 import { accentFor } from "@/lib/sleeve";
 import { logReview } from "@/app/actions";
@@ -129,7 +130,7 @@ export default function DrillRoom({ deck }: { deck: DrillItem[] }) {
                     <div className="hole" />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <button className="play" style={{ width: 52, height: 52 }} onClick={() => (aplaying ? stopHead() : playHead())}>{aplaying ? "❚❚" : "▶"}</button>
+                    <button className="play" style={{ width: 52, height: 52 }} aria-label={aplaying ? "停止" : "再生"} onClick={() => (aplaying ? stopHead() : playHead())}>{aplaying ? <Pause size={20} fill="currentColor" strokeWidth={0} /> : <Play size={20} fill="currentColor" strokeWidth={0} style={{ marginLeft: 2 }} />}</button>
                     <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>ヘッドを聴いて当てる</span>
                   </div>
                   <div className="chips">

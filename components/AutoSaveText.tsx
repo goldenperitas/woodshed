@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Check } from "lucide-react";
 
 // A textarea that debounce-saves to a targeted server action.
 export default function AutoSaveText({
@@ -49,8 +50,8 @@ export default function AutoSaveText({
         onChange={(e) => schedule(e.target.value)}
         onBlur={() => flush(value)}
       />
-      <div className="mt-1 h-4 text-right text-xs" style={{ color: "var(--muted)" }}>
-        {state === "saving" ? "保存中…" : state === "saved" ? "✓ 保存済み" : ""}
+      <div className="mt-1 h-4 text-right text-xs" style={{ color: "var(--muted)", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
+        {state === "saving" ? "保存中…" : state === "saved" ? <><Check size={12} strokeWidth={2.5} /> 保存済み</> : ""}
       </div>
     </div>
   );

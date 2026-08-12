@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { Trash2 } from "lucide-react";
 import { deleteStandard } from "@/app/actions";
 
 export default function DeleteStandardButton({ id, title }: { id: number; title: string }) {
@@ -15,7 +16,7 @@ export default function DeleteStandardButton({ id, title }: { id: number; title:
         }
       }}
     >
-      🗑 曲を削除
+      <Trash2 size={15} strokeWidth={2} /> 曲を削除
     </button>
   );
 }

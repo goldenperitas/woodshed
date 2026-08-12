@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { Check, Plus, Settings } from "lucide-react";
 import type { Group } from "@/lib/db/schema";
 import { setStandardGroup } from "@/app/actions";
 
@@ -51,12 +52,12 @@ export default function GroupsSection({
             }}
             onClick={() => toggle(g.id)}
           >
-            {active ? "✓ " : "＋ "}{g.name}
+            {active ? <Check size={13} strokeWidth={2.5} /> : <Plus size={13} strokeWidth={2} />}{g.name}
           </button>
         );
       })}
       <Link href="/groups" className="chip" style={{ color: "var(--muted)" }}>
-        ⚙ 管理
+        <Settings size={13} strokeWidth={2} /> 管理
       </Link>
     </div>
   );

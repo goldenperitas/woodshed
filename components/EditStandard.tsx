@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Pencil } from "lucide-react";
 import type { Standard } from "@/lib/db/schema";
 import { updateStandardMeta } from "@/app/actions";
 
@@ -15,7 +16,7 @@ export default function EditStandard({ std }: { std: Standard }) {
   if (!open) {
     return (
       <button className="btn btn-ghost text-sm" onClick={() => setOpen(true)}>
-        ✎ 基本情報を編集
+        <Pencil size={15} strokeWidth={2} /> 基本情報を編集
       </button>
     );
   }

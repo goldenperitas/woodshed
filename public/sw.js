@@ -2,7 +2,7 @@
 // Audio is NOT cached here — downloaded tracks live in IndexedDB and play
 // via object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v1";
+const CACHE = "woodshed-v2";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -26,10 +26,13 @@ self.addEventListener("fetch", (e) => {
   // Never intercept API calls or audio files.
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/audio/")) return;
 
-  // Hashed build assets: cache-first (immutable).
+  // Build assets: network-first, fall back to cache offline. In production the
+  // filenames are content-hashed so the network copy is cheap and always right;
+  // in dev the hash can be reused across edits, so cache-first would pin the app
+  // to stale code. Network-first keeps online iterations fresh either way.
   if (url.pathname.startsWith("/_next/static/")) {
     e.respondWith(
-      caches.match(req).then((hit) => hit || fetch(req).then((res) => put(req, res))),
+      fetch(req).then((res) => put(req, res)).catch(() => caches.match(req)),
     );
     return;
   }

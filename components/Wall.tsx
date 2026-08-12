@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Target, Library, Plus, Search } from "lucide-react";
 import type { StandardListItem } from "@/lib/db/queries";
 import Sleeve from "./Sleeve";
 
@@ -34,13 +35,13 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
             <div className="count"><b>{items.length}</b> 曲</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <Link href="/drill" className="btn" title="ドリル">◎</Link>
-            <Link href="/groups" className="btn" title="グループ">▦</Link>
-            <Link href="/standards/new" className="btn btn-accent" title="曲を追加">＋</Link>
+            <Link href="/drill" className="btn" title="ドリル" aria-label="ドリル"><Target size={18} strokeWidth={2} /></Link>
+            <Link href="/groups" className="btn" title="グループ" aria-label="グループ"><Library size={18} strokeWidth={2} /></Link>
+            <Link href="/standards/new" className="btn btn-accent" title="曲を追加" aria-label="曲を追加"><Plus size={18} strokeWidth={2.5} /></Link>
           </div>
         </div>
 
-        <label className="search"><span>⌕</span>
+        <label className="search"><Search size={16} strokeWidth={2} style={{ color: "var(--muted)", flex: "0 0 auto" }} />
           <input placeholder="検索" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
 
@@ -55,7 +56,7 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
 
       {shown.length === 0 ? (
         <div className="empty">
-          {items.length === 0 ? "棚は空。「＋」から最初の一枚を。" : "条件に合う曲がありません。"}
+          {items.length === 0 ? "棚は空。右上の＋から最初の一枚を。" : "条件に合う曲がありません。"}
         </div>
       ) : (
         <div className="grid">

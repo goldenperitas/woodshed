@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import RegisterSW from "@/components/RegisterSW";
+import PullToRefresh from "@/components/PullToRefresh";
 
 export const metadata: Metadata = {
   title: "Woodshed",
@@ -21,7 +22,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="ja">
       <body>
-        {children}
+        <PullToRefresh />
+        <div className="app-shell">{children}</div>
         <RegisterSW />
       </body>
     </html>

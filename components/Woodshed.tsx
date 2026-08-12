@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Play, Pause, Plus, X, Star, Pencil, Trash2, Download, Check, PenLine } from "lucide-react";
 import type { Recording, Region, Standard } from "@/lib/db/schema";
 import { REGION_LABELS, NOTE_TAGS, NOTE_TAG_LABEL } from "@/lib/constants";
 import { accentFor } from "@/lib/sleeve";
@@ -107,8 +108,10 @@ export default function Woodshed({
 
   // ---- disc geometry ----
   const spin = (1.8 / rate).toFixed(3) + "s";
+  // Tonearm: parked & lifted off the platter at rest; drops onto the outer
+  // groove when playing and travels inward toward the center as it progresses.
   const armOn = playing || pos > 0.3;
-  const armAngle = armOn && dur ? 6 + (pos / dur) * 16 : -16;
+  const armAngle = armOn && dur ? -12 + (pos / dur) * 18 : -34;
   const arcStyle: React.CSSProperties | undefined = loop && dur
     ? { strokeDasharray: `${(((loop.e - loop.s) / dur) * C).toFixed(2)} ${((1 - (loop.e - loop.s) / dur) * C).toFixed(2)}`,
         strokeDashoffset: (-(loop.s / dur) * C).toFixed(2) }
@@ -129,7 +132,7 @@ export default function Woodshed({
       {/* turntable */}
       <div className="stage">
         <div className="turntable">
-          <div className="disc" style={{ ["--spin" as string]: spin }}>
+          <div className={`disc ${playing ? "spinning" : ""}`} style={{ ["--spin" as string]: spin }}>
             <div className="label">
               {standard.artworkPath
                 // eslint-disable-next-line @next/next/no-img-element
@@ -166,8 +169,8 @@ export default function Woodshed({
                 <div className="p">{r.performer || r.originalName || "無名の録音"}</div>
                 <div className="d">{[r.year, r.instrumentation, r.durationSec ? fmtTime(r.durationSec) : null].filter(Boolean).join(" · ") || "情報未設定"}</div>
                 <div className="bd">
-                  {r.isReference === 1 && <span className="ref">★ REF</span>}
-                  {offlineSet.has(r.filePath) && <span className="off">◾ TAPE</span>}
+                  {r.isReference === 1 && <span className="ref"><Star size={11} strokeWidth={2} fill="currentColor" /> REF</span>}
+                  {offlineSet.has(r.filePath) && <span className="off"><Download size={11} strokeWidth={2} /> TAPE</span>}
                 </div>
               </button>
             ))}
@@ -179,7 +182,9 @@ export default function Woodshed({
         <>
           {/* transport */}
           <div className="transport">
-            <button className="play" onClick={togglePlay}>{playing ? "❚❚" : "▶"}</button>
+            <button className="play" onClick={togglePlay} aria-label={playing ? "一時停止" : "再生"}>
+              {playing ? <Pause size={22} fill="currentColor" strokeWidth={0} /> : <Play size={22} fill="currentColor" strokeWidth={0} style={{ marginLeft: 2 }} />}
+            </button>
             <div className="pbar-wrap">
               <div className="pbar" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * (dur || 0)); }}>
                 {loop && dur ? <div className="ploop" style={{ left: `${(loop.s / dur) * 100}%`, width: `${((loop.e - loop.s) / dur) * 100}%` }} /> : null}
@@ -207,7 +212,7 @@ export default function Woodshed({
                   {r.label || "区間"} {fmtTime(r.startSec)}–{fmtTime(r.endSec)}
                 </button>
                 <button className="chip" title="削除" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none", color: "var(--muted)" }}
-                  onClick={async () => { await deleteRegion(r.id, standard.id); clearLoop(); router.refresh(); }}>✕</button>
+                  onClick={async () => { await deleteRegion(r.id, standard.id); clearLoop(); router.refresh(); }}><X size={13} strokeWidth={2} /></button>
               </span>
             ))}
             {loop && <button className="chip" onClick={clearLoop}>解除</button>}
@@ -218,17 +223,17 @@ export default function Woodshed({
             <select className="chip" value={regLabel} onChange={(e) => setRegLabel(e.target.value)}>
               {REGION_LABELS.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
-            {markA !== null && markB !== null && <button className="chip on" onClick={saveRegion}>＋ 区間保存</button>}
+            {markA !== null && markB !== null && <button className="chip on" onClick={saveRegion}><Plus size={13} strokeWidth={2.5} /> 区間保存</button>}
           </div>
           <p className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 6 }}>※ head 区間はヘッド当てドリルに使われます</p>
 
           {/* timestamp note + per-take controls */}
           <div className="chips" style={{ marginTop: 14 }}>
-            {noteAt === null && <button className="btn" onClick={() => setNoteAt(pos)}>🕮 {fmtTime(pos)} にメモ</button>}
-            <button className="btn" onClick={toggleOffline}>{offlineSet.has(take.filePath) ? "✓ オフライン" : "⬇ オフライン保存"}</button>
-            {take.isReference !== 1 && <button className="btn" onClick={async () => { await setReference(take.id, standard.id); router.refresh(); }}>★ 基準にする</button>}
-            <button className="btn" onClick={() => setShowTakeEdit((v) => !v)}>✎ テイク情報</button>
-            <button className="btn btn-danger" onClick={async () => { if (confirm("このテイクを削除？")) { if (offlineSet.has(take.filePath)) await removeOffline(take.filePath); await deleteRecording(take.id, standard.id); setTakeIdx(0); router.refresh(); } }}>🗑</button>
+            {noteAt === null && <button className="btn" onClick={() => setNoteAt(pos)}><PenLine size={15} strokeWidth={2} /> {fmtTime(pos)} にメモ</button>}
+            <button className="btn" onClick={toggleOffline}>{offlineSet.has(take.filePath) ? <><Check size={15} strokeWidth={2} /> オフライン</> : <><Download size={15} strokeWidth={2} /> オフライン保存</>}</button>
+            {take.isReference !== 1 && <button className="btn" onClick={async () => { await setReference(take.id, standard.id); router.refresh(); }}><Star size={15} strokeWidth={2} /> 基準にする</button>}
+            <button className="btn" onClick={() => setShowTakeEdit((v) => !v)}><Pencil size={15} strokeWidth={2} /> テイク情報</button>
+            <button className="btn btn-danger" aria-label="テイクを削除" onClick={async () => { if (confirm("このテイクを削除？")) { if (offlineSet.has(take.filePath)) await removeOffline(take.filePath); await deleteRecording(take.id, standard.id); setTakeIdx(0); router.refresh(); } }}><Trash2 size={15} strokeWidth={2} /></button>
           </div>
 
           {noteAt !== null && (
