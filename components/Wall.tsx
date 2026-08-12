@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Target, Library, Plus, Search } from "lucide-react";
+import { Target, Library, Plus, Search, Radio } from "lucide-react";
 import type { StandardListItem } from "@/lib/db/queries";
 import Sleeve from "./Sleeve";
 import RandomQuote from "./RandomQuote";
@@ -32,6 +32,7 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
         <div className="wall-top">
           <div className="eyebrow">Collection · Woodshed</div>
           <div className="wall-actions">
+            <Link href="/listening" className="btn" title="Listening Room" aria-label="Listening Room"><Radio size={18} strokeWidth={2} /></Link>
             <Link href="/drill" className="btn" title="ドリル" aria-label="ドリル"><Target size={18} strokeWidth={2} /></Link>
             <Link href="/groups" className="btn" title="グループ" aria-label="グループ"><Library size={18} strokeWidth={2} /></Link>
             <Link href="/standards/new" className="btn btn-accent" title="曲を追加" aria-label="曲を追加"><Plus size={18} strokeWidth={2.5} /></Link>

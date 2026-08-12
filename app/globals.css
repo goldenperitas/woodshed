@@ -70,6 +70,30 @@ body.has-player { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
 .nowbar-meta .s { font-family: "SpaceMono", monospace; font-size: 10.5px; letter-spacing: .04em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nowbar-btn { flex: 0 0 auto; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--accent); color: #160b03; cursor: pointer; }
 .nowbar-btn.ghost { background: transparent; color: var(--muted-2); border: 1px solid var(--line); }
+
+/* ---- listening room (playlist) ---- */
+.lr-list { display: flex; flex-direction: column; margin-top: 6px; }
+.lr-item { border-bottom: 1px solid var(--line); }
+.lr-item.now { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.lr-row { display: flex; align-items: center; gap: 12px; padding: 11px 6px; cursor: pointer; }
+.lr-play { flex: 0 0 auto; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; border: 0; background: transparent; color: var(--muted-2); cursor: pointer; font-family: "SpaceMono", monospace; font-size: 12px; }
+.lr-item.now .lr-play { background: var(--accent); color: #160b03; }
+.lr-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; gap: 2px; }
+.lr-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lr-item.now .lr-title { color: var(--accent); }
+.lr-take { font-family: "SpaceMono", monospace; font-size: 11px; letter-spacing: .03em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lr-dur { font-family: "SpaceMono", monospace; font-size: 11px; color: var(--muted); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.lr-chev { color: var(--muted); flex: 0 0 auto; transition: transform .2s; }
+.lr-chev.open { transform: rotate(180deg); }
+.lr-detail { padding: 2px 6px 16px 50px; }
+.lr-detail .kv { margin-bottom: 8px; }
+.lr-chords { font-family: "SpaceMono", monospace; font-size: 12.5px; line-height: 1.8; color: #dccfb4; white-space: pre-wrap; margin: 0; }
+.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.eq i { width: 3px; background: #160b03; border-radius: 1px; transform-origin: bottom; animation: eqbar .9s ease-in-out infinite; }
+.eq i:nth-child(1) { height: 40%; animation-delay: -.2s; }
+.eq i:nth-child(2) { height: 90%; animation-delay: -.5s; }
+.eq i:nth-child(3) { height: 60%; animation-delay: 0s; }
+@keyframes eqbar { 0%, 100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; }
 
