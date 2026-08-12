@@ -1,6 +1,9 @@
-import ListeningRoomDemo from "@/components/ListeningRoomDemo";
+import { listAllTakes } from "@/lib/db/queries";
+import ListeningRoom from "@/components/ListeningRoom";
 
-// Demo screen (no data yet) — a spec mockup for the Listening Room.
+export const dynamic = "force-dynamic";
+
 export default function ListeningPage() {
-  return <ListeningRoomDemo />;
+  const takes = listAllTakes();
+  return <ListeningRoom takes={takes} />;
 }

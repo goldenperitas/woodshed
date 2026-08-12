@@ -239,3 +239,60 @@ export function lastIntervalDays(standardId: number, mode: string): number {
   const diff = rows[0].nextDue - rows[0].reviewedAt;
   return Math.max(0, Math.round(diff / (24 * 60 * 60 * 1000)));
 }
+
+// Every take of every standard, flattened — for the Listening Room queue.
+export type ListeningTake = {
+  takeId: number;
+  filePath: string;
+  performer: string | null;
+  originalName: string | null;
+  year: number | null;
+  instrumentation: string | null;
+  durationSec: number | null;
+  isReference: number;
+  standardId: number;
+  title: string;
+  key: string | null;
+  chordInterpretation: string | null;
+  status: number;
+  artworkPath: string | null;
+  groupNames: string[];
+};
+
+export function listAllTakes(): ListeningTake[] {
+  const rows = db
+    .select({
+      takeId: recordings.id,
+      filePath: recordings.filePath,
+      performer: recordings.performer,
+      originalName: recordings.originalName,
+      year: recordings.year,
+      instrumentation: recordings.instrumentation,
+      durationSec: recordings.durationSec,
+      isReference: recordings.isReference,
+      standardId: standards.id,
+      title: standards.title,
+      key: standards.key,
+      chordInterpretation: standards.chordInterpretation,
+      status: standards.status,
+      artworkPath: standards.artworkPath,
+    })
+    .from(recordings)
+    .innerJoin(standards, eq(standards.id, recordings.standardId))
+    .orderBy(asc(standards.title), desc(recordings.isReference))
+    .all();
+
+  const gm = db
+    .select({ standardId: standardGroups.standardId, name: groups.name })
+    .from(standardGroups)
+    .innerJoin(groups, eq(groups.id, standardGroups.groupId))
+    .all();
+  const byStd = new Map<number, string[]>();
+  for (const g of gm) {
+    const arr = byStd.get(g.standardId) ?? [];
+    arr.push(g.name);
+    byStd.set(g.standardId, arr);
+  }
+
+  return rows.map((r) => ({ ...r, groupNames: byStd.get(r.standardId) ?? [] }));
+}

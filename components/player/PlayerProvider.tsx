@@ -24,6 +24,7 @@ type Ctx = {
   dur: number;
   rate: number;
   loop: Loop;
+  endedSignal: number; // bumps each time a track plays to its end (for queues)
   isCurrent: (id: string) => boolean;
   load: (t: PlayerTrack, opts?: { autoplay?: boolean; loop?: Loop; rate?: number }) => void;
   toggle: () => void;
@@ -54,6 +55,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   const [dur, setDur] = useState(0);
   const [rate, setRateState] = useState(1);
   const [loop, setLoopState] = useState<Loop>(null);
+  const [endedSignal, setEndedSignal] = useState(0);
 
   // Keep playbackRate + pitch preservation in sync.
   useEffect(() => {
@@ -115,7 +117,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   };
 
   const value: Ctx = {
-    track, playing, pos, dur, rate, loop,
+    track, playing, pos, dur, rate, loop, endedSignal,
     isCurrent, load, toggle, play, pause, stop, seek, setRate, setLoop,
   };
 
@@ -129,7 +131,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
         onTimeUpdate={onTime}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setEndedSignal((n) => n + 1); }}
       />
       <NowPlayingBar />
     </PlayerCtx.Provider>
