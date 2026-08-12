@@ -4,6 +4,23 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, X } from "lucide-react";
 
+// Decode an audio file's duration in the browser (metadata only) so the take
+// shows its length instead of "情報未設定".
+function fileDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("audio");
+    a.preload = "metadata";
+    const done = (v: number | null) => {
+      URL.revokeObjectURL(url);
+      resolve(v);
+    };
+    a.onloadedmetadata = () => done(Number.isFinite(a.duration) ? Math.round(a.duration) : null);
+    a.onerror = () => done(null);
+    a.src = url;
+  });
+}
+
 export default function AudioUploader({ standardId }: { standardId: number }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,6 +46,8 @@ export default function AudioUploader({ standardId }: { standardId: number }) {
         const fd = new FormData();
         fd.set("file", files[i]);
         fd.set("standardId", String(standardId));
+        const dur = await fileDuration(files[i]);
+        if (dur) fd.set("durationSec", String(dur));
         if (performer) fd.set("performer", performer);
         if (year) fd.set("year", year);
         if (instrumentation) fd.set("instrumentation", instrumentation);
