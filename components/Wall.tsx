@@ -9,22 +9,27 @@ import RandomQuote from "./RandomQuote";
 
 export default function Wall({ items }: { items: StandardListItem[] }) {
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<string | null>(null); // "often" | "0" | "1" | "2" | "3" | null
+  // Compound filtering: 頻出 is an AND constraint, statuses are OR'd together.
+  const [often, setOften] = useState(false);
+  const [statuses, setStatuses] = useState<number[]>([]);
+
+  const toggleStatus = (n: number) =>
+    setStatuses((cur) => (cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n]));
+  const clearFilters = () => { setOften(false); setStatuses([]); };
+  const allOn = !often && statuses.length === 0;
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return items.filter((it) => {
-      if (filter === "often" && it.calledOften !== 1) return false;
-      if (filter === "0" || filter === "1" || filter === "2" || filter === "3") {
-        if (it.status !== Number(filter)) return false;
-      }
+      if (often && it.calledOften !== 1) return false;
+      if (statuses.length > 0 && !statuses.includes(it.status)) return false;
       if (needle) {
         const hay = `${it.title} ${it.composer ?? ""} ${it.key ?? ""} ${it.form ?? ""}`.toLowerCase();
         if (!hay.includes(needle)) return false;
       }
       return true;
     });
-  }, [items, q, filter]);
+  }, [items, q, often, statuses]);
 
   return (
     <div className="wrap">
@@ -40,17 +45,17 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
         </div>
 
         <RandomQuote />
-        <div className="count"><b>{items.length}</b> 曲</div>
+        <div className="count"><b>{shown.length}</b> 曲{allOn && !q.trim() ? "" : ` / ${items.length}`}</div>
 
         <label className="search"><Search size={16} strokeWidth={2} style={{ color: "var(--muted)", flex: "0 0 auto" }} />
           <input placeholder="検索" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
 
         <div className="tabs">
-          <button className={`tab ${filter === null ? "on" : ""}`} onClick={() => setFilter(null)}>すべて</button>
-          <button className={`tab ${filter === "often" ? "on" : ""}`} onClick={() => setFilter(filter === "often" ? null : "often")}>頻出</button>
-          {["0", "1", "2", "3"].map((s) => (
-            <button key={s} className={`tab mono ${filter === s ? "on" : ""}`} onClick={() => setFilter(filter === s ? null : s)}>S{s}</button>
+          <button className={`tab ${allOn ? "on" : ""}`} onClick={clearFilters}>すべて</button>
+          <button className={`tab ${often ? "on" : ""}`} onClick={() => setOften((v) => !v)}>頻出</button>
+          {[0, 1, 2, 3].map((s) => (
+            <button key={s} className={`tab mono ${statuses.includes(s) ? "on" : ""}`} onClick={() => toggleStatus(s)}>S{s}</button>
           ))}
         </div>
       </header>
