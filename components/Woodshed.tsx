@@ -246,11 +246,11 @@ export default function Woodshed({
 
           {/* timestamp note + per-take controls */}
           <div className="chips" style={{ marginTop: 14 }}>
-            {noteAt === null && <button className="btn" onClick={() => setNoteAt(pos)}><PenLine size={15} strokeWidth={2} /> {fmtTime(pos)} にメモ</button>}
-            <button className="btn" onClick={toggleOffline}>{offlineSet.has(take.filePath) ? <><Check size={15} strokeWidth={2} /> オフライン</> : <><Download size={15} strokeWidth={2} /> オフライン保存</>}</button>
-            {take.isReference !== 1 && <button className="btn" onClick={async () => { await setReference(take.id, standard.id); router.refresh(); }}><Star size={15} strokeWidth={2} /> 基準にする</button>}
-            <button className="btn" onClick={() => setShowTakeEdit((v) => !v)}><Pencil size={15} strokeWidth={2} /> テイク情報</button>
-            <button className="btn btn-danger" aria-label="テイクを削除" onClick={async () => { if (confirm("このテイクを削除？")) { if (isThis) player.stop(); if (offlineSet.has(take.filePath)) await removeOffline(take.filePath); await deleteRecording(take.id, standard.id); setTakeIdx(0); router.refresh(); } }}><Trash2 size={15} strokeWidth={2} /></button>
+            {noteAt === null && <button className="chip" onClick={() => setNoteAt(pos)}><PenLine size={13} strokeWidth={2} /> {fmtTime(pos)} にメモ</button>}
+            <button className="chip" onClick={toggleOffline}>{offlineSet.has(take.filePath) ? <><Check size={13} strokeWidth={2} /> Saved</> : <><Download size={13} strokeWidth={2} /> Save</>}</button>
+            {take.isReference !== 1 && <button className="chip" onClick={async () => { await setReference(take.id, standard.id); router.refresh(); }}><Star size={13} strokeWidth={2} /> Ref</button>}
+            <button className="chip" aria-label="テイク情報" title="テイク情報" onClick={() => setShowTakeEdit((v) => !v)}><Pencil size={13} strokeWidth={2} /></button>
+            <button className="chip" aria-label="テイクを削除" title="削除" style={{ color: "#ef8f7e", borderColor: "#5a3128" }} onClick={async () => { if (confirm("このテイクを削除？")) { if (isThis) player.stop(); if (offlineSet.has(take.filePath)) await removeOffline(take.filePath); await deleteRecording(take.id, standard.id); setTakeIdx(0); router.refresh(); } }}><Trash2 size={13} strokeWidth={2} /></button>
           </div>
 
           {noteAt !== null && (
