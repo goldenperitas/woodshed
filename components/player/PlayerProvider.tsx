@@ -114,7 +114,60 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     if (!a) return;
     if (loop && a.currentTime >= loop.e) a.currentTime = loop.s;
     setPos(a.currentTime);
+    if ("mediaSession" in navigator && Number.isFinite(a.duration) && a.duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: a.duration,
+          position: Math.min(a.currentTime, a.duration),
+          playbackRate: a.playbackRate || 1,
+        });
+      } catch { /* Safari throws on odd states — ignore */ }
+    }
   };
+
+  // ---- iOS/Android lock-screen "Now Playing" (Media Session API) ----
+  // Populate title / artist / artwork so the OS shows the tune instead of
+  // just the PWA name, and wire the lock-screen transport controls.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    if (!track) { navigator.mediaSession.metadata = null; return; }
+    const img = track.artworkPath ? "/" + track.artworkPath : "/icon-512.png";
+    const type = /\.png$/i.test(img) ? "image/png" : /\.jpe?g$/i.test(img) ? "image/jpeg" : "";
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title,
+        artist: track.subtitle || "Woodshed",
+        album: "Woodshed",
+        artwork: [
+          { src: img, sizes: "512x512", type },
+          { src: img, sizes: "256x256", type },
+        ],
+      });
+    } catch { /* ignore */ }
+  }, [track]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = playing ? "playing" : "paused";
+  }, [playing]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const ms = navigator.mediaSession;
+    const el = () => audioRef.current;
+    const set = (a: MediaSessionAction, h: MediaSessionActionHandler | null) => {
+      try { ms.setActionHandler(a, h); } catch { /* unsupported action */ }
+    };
+    set("play", () => { el()?.play().catch(() => {}); });
+    set("pause", () => { el()?.pause(); });
+    set("seekto", (d) => { const a = el(); if (a && d.seekTime != null) { a.currentTime = d.seekTime; setPos(a.currentTime); } });
+    set("seekbackward", (d) => { const a = el(); if (a) { a.currentTime = Math.max(0, a.currentTime - (d.seekOffset || 10)); setPos(a.currentTime); } });
+    set("seekforward", (d) => { const a = el(); if (a) { a.currentTime = Math.min(a.duration || Infinity, a.currentTime + (d.seekOffset || 10)); setPos(a.currentTime); } });
+    return () => {
+      (["play", "pause", "seekto", "seekbackward", "seekforward"] as MediaSessionAction[])
+        .forEach((a) => { try { ms.setActionHandler(a, null); } catch { /* ignore */ } });
+    };
+  }, []);
 
   const value: Ctx = {
     track, playing, pos, dur, rate, loop, endedSignal,
