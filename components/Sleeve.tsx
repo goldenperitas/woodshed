@@ -46,6 +46,9 @@ export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number
         {status}
         <div className="pstrip">
           <span className="ptitle">{s.title}</span>
+          {(s.key || s.form) && (
+            <span className="pkey">{[s.key, s.form].filter(Boolean).join(" · ")}</span>
+          )}
         </div>
       </div>
     );
