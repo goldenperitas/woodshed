@@ -26,7 +26,7 @@ type Ctx = {
   loop: Loop;
   endedSignal: number; // bumps each time a track plays to its end (for queues)
   isCurrent: (id: string) => boolean;
-  load: (t: PlayerTrack, opts?: { autoplay?: boolean; loop?: Loop; rate?: number }) => void;
+  load: (t: PlayerTrack, opts?: { autoplay?: boolean; loop?: Loop; rate?: number; repeat?: boolean }) => void;
   toggle: () => void;
   play: () => void;
   pause: () => void;
@@ -34,6 +34,7 @@ type Ctx = {
   seek: (t: number) => void;
   setRate: (r: number) => void;
   setLoop: (l: Loop) => void;
+  setRepeat: (repeat: boolean) => void; // native whole-track loop
 };
 
 const PlayerCtx = createContext<Ctx | null>(null);
@@ -76,6 +77,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     setPos(0);
     setDur(0);
     a.src = t.src;
+    a.loop = !!opts.repeat; // repeat this track (tune page); off for queues
     a.load();
     if (opts.autoplay !== false) {
       const p = a.play();
@@ -107,6 +109,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   }, []);
   const setRate = useCallback((r: number) => setRateState(r), []);
   const setLoop = useCallback((l: Loop) => setLoopState(l), []);
+  const setRepeat = useCallback((r: boolean) => { const a = audioRef.current; if (a) a.loop = r; }, []);
   const isCurrent = useCallback((id: string) => track?.id === id, [track]);
 
   const onTime = () => {
@@ -171,7 +174,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
 
   const value: Ctx = {
     track, playing, pos, dur, rate, loop, endedSignal,
-    isCurrent, load, toggle, play, pause, stop, seek, setRate, setLoop,
+    isCurrent, load, toggle, play, pause, stop, seek, setRate, setLoop, setRepeat,
   };
 
   return (

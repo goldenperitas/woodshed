@@ -63,6 +63,10 @@ export default function Woodshed({
 
   useEffect(() => { listOfflineKeys().then((ks) => setOfflineSet(new Set(ks))); }, []);
 
+  // While this take is the one playing on its own page, keep it repeating —
+  // even if it was started from the Listening Room (which plays through).
+  useEffect(() => { if (isThis) player.setRepeat(true); }, [isThis, player]);
+
   // Resolve the selected take's src, and reset page-local cues for it.
   useEffect(() => {
     if (!take) { setSrc(null); return; }
@@ -91,6 +95,7 @@ export default function Woodshed({
         autoplay: opts.autoplay ?? true,
         rate: localRate,
         loop: opts.loop !== undefined ? opts.loop : (localLoop ? { s: localLoop.s, e: localLoop.e } : null),
+        repeat: true, // on the tune page, keep repeating this take
       },
     );
   }, [take, src, standard, accent, localRate, localLoop, player]);
