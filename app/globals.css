@@ -180,7 +180,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 .jacket .tape { width: 16px; height: 16px; display: grid; place-items: center; border-radius: 2px; background: rgba(0,0,0,.55); color: var(--paper); font-size: 11px; }
 
 .jacket.typo { background: var(--paper); color: var(--ink); }
-.jacket.typo .bar { position: absolute; left: 0; top: 0; height: 8px; width: 100%; background: var(--ja); }
+.jacket.typo .bar { position: absolute; left: 0; top: 0; height: 74px; width: 100%; background: linear-gradient(180deg, var(--ja) 0, var(--ja) 8px, transparent 100%); }
 .jacket.typo .jcomp { position: absolute; left: 12px; top: 15px; font-family: "SpaceMono", monospace; font-size: 9.5px; letter-spacing: .1em; color: var(--ja); font-weight: 700; }
 .jacket.typo .jtitle { position: absolute; left: 12px; right: 12px; bottom: 30px; font-family: "Anton"; line-height: .84; font-size: clamp(1.15rem, 6.6vw, 1.9rem); color: var(--ink); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .jacket.typo .jkey { position: absolute; left: 12px; bottom: 12px; font-family: "SpaceMono", monospace; font-size: 10px; letter-spacing: .06em; color: #6c6144; font-weight: 700; }
@@ -188,17 +188,22 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 
 .jacket.art { background: #111; }
 .jacket.art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.jacket.art::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 82px; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(0,0,0,.72), transparent); }
 .jacket.art .pstrip { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 22px 12px 12px; background: linear-gradient(transparent, rgba(0,0,0,.72) 55%); color: var(--paper); }
 .jacket.art .ptitle { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: "Anton"; line-height: .86; font-size: clamp(1.1rem, 6.2vw, 1.7rem); }
 .jacket.art .stag { color: var(--paper); background: rgba(0,0,0,.5); }
 
 /* Status strip: ◎ record + S1/S2/S3 stars, in the tune's own colour */
-.jstatus { position: absolute; top: 12px; left: 11px; right: 11px; display: flex; align-items: center; justify-content: space-between; z-index: 3; }
-.jstars { display: flex; align-items: center; gap: 4px; }
-.jstatus .on { color: var(--ja); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ja) 62%, transparent)); }
-.jacket.typo .jstatus { top: 15px; }
-.jacket.typo .jstatus .off { color: rgba(20,16,8,.15); }
-.jacket.art .jstatus .off { color: rgba(255,255,255,.34); filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
+.jstatus { position: absolute; top: 8px; left: 11px; right: 5px; display: flex; align-items: center; justify-content: flex-end; z-index: 3; }
+/* Icons ride a top-down gradient baked into the sleeve (tune colour for
+   typographic sleeves, black for photos) — see .bar / .jacket.art::before */
+.jchip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 4px;
+}
+.jchip .lucide-disc { margin-right: 3px; }
+.jstatus .on { color: var(--paper); }
+.jstatus .off { color: color-mix(in srgb, var(--paper) 32%, transparent); }
 
 .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 28px; text-align: center; color: var(--muted); font-size: 14px; margin-top: 20px; }
 

@@ -23,12 +23,12 @@ export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number
   const hasTakes = s.recordingCount > 0;
   const status = (
     <div className="jstatus">
-      <Disc size={15} strokeWidth={2.4} className={hasTakes ? "on" : "off"} />
-      <span className="jstars">
+      <span className="jchip">
+        <Disc size={16} strokeWidth={2.4} className={hasTakes ? "on" : "off"} />
         {[1, 2, 3].map((n) => (
           <Star
             key={n}
-            size={14}
+            size={15}
             strokeWidth={2}
             fill={s.status >= n ? "currentColor" : "none"}
             className={s.status >= n ? "on" : "off"}
