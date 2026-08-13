@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Target, Library, Plus, Search, Radio } from "lucide-react";
+import { Target, Library, Plus, Search, Radio, X } from "lucide-react";
 import type { StandardListItem } from "@/lib/db/queries";
 import Sleeve from "./Sleeve";
 import RandomQuote from "./RandomQuote";
@@ -105,6 +105,11 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
 
         <label className="search"><Search size={16} strokeWidth={2} style={{ color: "var(--muted)", flex: "0 0 auto" }} />
           <input placeholder="検索" value={q} onChange={(e) => setQ(e.target.value)} />
+          {q && (
+            <button type="button" className="search-clear" aria-label="検索をクリア" onClick={() => setQ("")}>
+              <X size={16} strokeWidth={2} />
+            </button>
+          )}
         </label>
 
         <div className="tabs">
