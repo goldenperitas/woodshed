@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Dices } from "lucide-react";
 import type { DrillItem } from "@/lib/db/queries";
 import { accentFor } from "@/lib/sleeve";
 import { logReview } from "@/app/actions";
 import { usePlayer } from "@/components/player/PlayerProvider";
+
+type Mode = "name" | "audio" | "session";
 
 const RATINGS = [
   { v: 1, label: "もう一度", cls: "again" },
@@ -15,11 +17,35 @@ const RATINGS = [
   { v: 4, label: "余裕", cls: "easy" },
 ];
 
-function orderDue(items: DrillItem[], mode: "name" | "audio") {
+// 12 pitch classes for the session simulator — flats, no major/minor.
+const KEYS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+const SHARP_TO_FLAT: Record<string, string> = { C: "Db", D: "Eb", E: "F", F: "Gb", G: "Ab", A: "Bb", B: "C" };
+
+// Normalize a stored key like "Bb", "F#", "Ebm7" to a bare flat pitch class.
+function rootOf(k: string | null): string | null {
+  if (!k) return null;
+  const m = k.trim().match(/^([A-Ga-g])([#♯b♭]?)/);
+  if (!m) return null;
+  let n = m[1].toUpperCase();
+  if (m[2] === "#" || m[2] === "♯") n = SHARP_TO_FLAT[n] ?? n;
+  else if (m[2] === "b" || m[2] === "♭") n = n + "b";
+  return KEYS.includes(n) ? n : null;
+}
+
+// Random target key, biased away from the tune's own key so it's always a
+// real transposition.
+function pickKey(orig: string | null): string {
+  const avoid = rootOf(orig);
+  let k = KEYS[Math.floor(Math.random() * KEYS.length)];
+  if (avoid && k === avoid) k = KEYS[(KEYS.indexOf(k) + 1 + Math.floor(Math.random() * 11)) % 12];
+  return k;
+}
+
+function orderDue(items: DrillItem[], mode: Mode) {
   const now = Date.now();
   const due: DrillItem[] = [], unseen: DrillItem[] = [], later: DrillItem[] = [];
   for (const d of items) {
-    const v = mode === "audio" ? d.dueAudio : d.dueName;
+    const v = mode === "audio" ? d.dueAudio : mode === "session" ? d.dueSession : d.dueName;
     if (v === null) unseen.push(d);
     else if (v <= now) due.push(d);
     else later.push(d);
@@ -38,7 +64,7 @@ export default function DrillRoom({
     () => [...new Set(deck.flatMap((d) => d.groupNames))].sort(),
     [deck],
   );
-  const [mode, setMode] = useState<"name" | "audio">("name");
+  const [mode, setMode] = useState<Mode>("name");
   const [group, setGroup] = useState<string | null>(
     initialGroup && allGroups.includes(initialGroup) ? initialGroup : null,
   );
@@ -48,18 +74,27 @@ export default function DrillRoom({
   const audioRef = useRef<HTMLAudioElement>(null);
   const [arate, setArate] = useState(1);
   const [aplaying, setAplaying] = useState(false);
+  const [sessionKey, setSessionKey] = useState("C");
   const player = usePlayer();
 
   const queue = useMemo(() => {
     let eligible = group ? deck.filter((d) => d.groupNames.includes(group)) : deck;
     if (mode === "audio") eligible = eligible.filter((d) => d.head);
+    if (mode === "session") eligible = eligible.filter((d) => d.status >= 2);
     return orderDue(eligible, mode);
   }, [deck, mode, group]);
 
   const item = queue[idx];
   const accent = item ? accentFor(item.title) : "#E1541B";
 
-  function switchMode(m: "name" | "audio") {
+  // Assign a fresh random key each time a session card comes up.
+  useEffect(() => {
+    if (mode !== "session" || !item) return;
+    setSessionKey(pickKey(item.key));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, item?.id]);
+
+  function switchMode(m: Mode) {
     setMode(m); setIdx(0); setRevealed(false); setDone(false); stopHead();
   }
 
@@ -71,7 +106,8 @@ export default function DrillRoom({
 
   async function rate(v: number) {
     if (!item) return;
-    await logReview(item.id, mode === "audio" ? "audio_to_name" : "name_to_info", v);
+    const logMode = mode === "audio" ? "audio_to_name" : mode === "session" ? "session_key" : "name_to_info";
+    await logReview(item.id, logMode, v);
     stopHead();
     if (idx + 1 >= queue.length) { setDone(true); }
     else { setIdx(idx + 1); setRevealed(false); }
@@ -98,6 +134,7 @@ export default function DrillRoom({
           <div className="chips">
             <button className={`chip ${mode === "name" ? "on" : ""}`} onClick={() => switchMode("name")}>曲名 → 情報</button>
             <button className={`chip ${mode === "audio" ? "on" : ""}`} onClick={() => switchMode("audio")}>音 → 曲名</button>
+            <button className={`chip ${mode === "session" ? "on" : ""}`} onClick={() => switchMode("session")}>セッション</button>
           </div>
           <Link href="/" className="back">やめる</Link>
         </div>
@@ -116,7 +153,9 @@ export default function DrillRoom({
             <div>
               <div className="display" style={{ fontSize: 28, color: "var(--accent)" }}>ひと巡り</div>
               <p style={{ color: "var(--muted)", marginTop: 8 }}>
-                {queue.length === 0 ? "対象がありません。" : `${queue.length} 枚を回しました。`}
+                {queue.length === 0
+                  ? mode === "session" ? "S2・S3 の曲がありません。" : "対象がありません。"
+                  : `${queue.length} 枚を回しました。`}
               </p>
               <button className="btn btn-accent" style={{ marginTop: 16 }} onClick={() => { setIdx(0); setRevealed(false); setDone(false); }}>もう一周</button>
             </div>
@@ -146,6 +185,43 @@ export default function DrillRoom({
                         {item.composer && <span>{item.composer}</span>}
                       </div>
                       {item.chordInterpretation && <pre className="chline" style={{ whiteSpace: "pre-wrap", margin: 0 }}>{item.chordInterpretation}</pre>}
+                    </div>
+                  </div>
+                </div>
+              ) : mode === "session" ? (
+                <div className={`flip ${revealed ? "on" : ""}`}>
+                  <div className="fin">
+                    <div className="face front sess">
+                      <span className="fbar" />
+                      <span className="eyebrow">Session</span>
+                      <span className="t">{item.title}</span>
+                      <div className="skey">
+                        <span className="lab">Play in</span>
+                        <span className="val">{sessionKey}</span>
+                        <button
+                          type="button"
+                          className="reroll"
+                          aria-label="別のキー"
+                          title="別のキー"
+                          onClick={(e) => { e.stopPropagation(); setSessionKey(pickKey(item.key)); }}
+                        >
+                          <Dices size={17} strokeWidth={2} />
+                        </button>
+                      </div>
+                      <span className="prompt">このキーでヘッド／フルを弾く</span>
+                    </div>
+                    <div className="face face-back">
+                      <span className="eyebrow">Changes</span>
+                      <span className="bt">{item.title}</span>
+                      <div className="kv">
+                        <span className="hot">in {sessionKey}</span>
+                        {item.key && <span>orig {item.key}</span>}
+                        {item.form && <span>{item.form}</span>}
+                        {item.composer && <span>{item.composer}</span>}
+                      </div>
+                      {item.chordInterpretation
+                        ? <pre className="chline" style={{ whiteSpace: "pre-wrap", margin: 0 }}>{item.chordInterpretation}</pre>
+                        : <span className="prompt" style={{ color: "var(--muted)" }}>コード進行は未登録。頭の中の進行を {sessionKey} で。</span>}
                     </div>
                   </div>
                 </div>

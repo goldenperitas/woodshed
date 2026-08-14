@@ -160,6 +160,7 @@ export type DrillItem = {
   groupNames: string[];
   dueName: number | null; // latest nextDue for name_to_info
   dueAudio: number | null; // latest nextDue for audio_to_name
+  dueSession: number | null; // latest nextDue for session_key (transpose drill)
   head: { src: string; start: number; end: number } | null; // for audio drill
 };
 
@@ -187,8 +188,12 @@ export function getDrillDeck(): DrillItem[] {
     .all();
   const dueName = new Map<number, number>();
   const dueAudio = new Map<number, number>();
+  const dueSession = new Map<number, number>();
   for (const r of revs) {
-    const target = r.mode === "audio_to_name" ? dueAudio : dueName;
+    const target =
+      r.mode === "audio_to_name" ? dueAudio
+      : r.mode === "session_key" ? dueSession
+      : dueName;
     if (!target.has(r.standardId)) target.set(r.standardId, r.nextDue);
   }
 
@@ -234,6 +239,7 @@ export function getDrillDeck(): DrillItem[] {
       groupNames: groupsByStd.get(s.id) ?? [],
       dueName: dueName.get(s.id) ?? null,
       dueAudio: dueAudio.get(s.id) ?? null,
+      dueSession: dueSession.get(s.id) ?? null,
       head: head ? { src: head.src, start: head.start, end: head.end } : null,
     };
   });

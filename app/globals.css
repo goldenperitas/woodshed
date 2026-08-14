@@ -304,10 +304,17 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 .front .fbar { position: absolute; left: 0; top: 0; height: 9px; width: 100%; background: var(--accent); }
 .front .t { font-family: "Anton"; color: var(--ink); line-height: .86; font-size: clamp(2.2rem, 11vw, 3.4rem); margin-top: auto; }
 .front .prompt { font-size: 12.5px; color: #6c6144; margin-top: 12px; line-height: 1.6; }
+.front.sess .t { font-size: clamp(1.9rem, 9.4vw, 2.9rem); }
+.front .skey { display: flex; align-items: baseline; gap: 10px; margin-top: 18px; }
+.front .skey .lab { font-family: "SpaceMono", monospace; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #6c6144; }
+.front .skey .val { font-family: "Anton"; font-size: clamp(2.2rem, 12vw, 3.4rem); line-height: .8; color: var(--accent); }
+.front .skey .reroll { margin-left: auto; align-self: center; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0,0,0,.14); background: transparent; color: #6c6144; cursor: pointer; }
+.front .skey .reroll:active { background: rgba(0,0,0,.06); }
 .face-back { background: var(--ink2); color: var(--paper); transform: rotateY(180deg); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 .face-back .bt { font-family: "Anton"; font-size: clamp(1.5rem, 8vw, 2.2rem); line-height: .9; }
 .kv { display: flex; gap: 8px; flex-wrap: wrap; }
 .kv span { font-family: "SpaceMono", monospace; font-size: 11px; border: 1px solid var(--line); border-radius: 3px; padding: 3px 8px; color: var(--muted-2); }
+.kv span.hot { color: #160b03; background: var(--accent); border-color: var(--accent); font-weight: 700; text-transform: uppercase; }
 .chline { font-family: "SpaceMono", monospace; font-size: 12.5px; color: #dccfb4; }
 .hintline { font-size: 13px; line-height: 1.7; color: #e6dcc6; }
 
