@@ -284,6 +284,29 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 .sec { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 16px; }
 .sec h4 { font-family: "SpaceMono", monospace; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
 .sec pre { font-family: "SpaceMono", monospace; font-size: 12.5px; line-height: 1.9; color: #dccfb4; white-space: pre-wrap; }
+
+/* ---- review log (tune page) ---- */
+.rl { display: flex; flex-direction: column; gap: 16px; }
+.rl-modes { display: flex; flex-direction: column; gap: 13px; }
+.rl-mode { display: flex; flex-direction: column; gap: 7px; }
+.rl-mode-top { display: flex; align-items: baseline; gap: 10px; }
+.rl-mode-top .nm { font-family: "SpaceMono", monospace; font-size: 12.5px; letter-spacing: .04em; color: var(--paper-2); }
+.rl-due { margin-left: auto; font-family: "SpaceMono", monospace; font-size: 11px; letter-spacing: .06em; color: var(--muted); flex: 0 0 auto; }
+.rl-due.now { color: var(--accent); }
+.rl-tally { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.rl-tally .rt { display: inline-flex; align-items: center; gap: 5px; font-family: "SpaceMono", monospace; font-size: 11.5px; color: var(--muted-2); font-variant-numeric: tabular-nums; }
+.rl-tally .rt i { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.rl-tally .rt b { font-weight: 700; color: var(--paper); }
+.rl-last { font-family: "SpaceMono", monospace; font-size: 10.5px; letter-spacing: .04em; color: var(--muted); }
+
+.rl-log { display: flex; flex-direction: column; }
+.rl-log-h { font-family: "SpaceMono", monospace; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.rl-log .row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-family: "SpaceMono", monospace; font-size: 12px; }
+.rl-log .row .d { color: var(--muted); font-variant-numeric: tabular-nums; flex: 0 0 auto; width: 42px; }
+.rl-log .row .m { color: var(--muted-2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rl-log .row .r { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.rl-log .row .r i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+.rl-more { font-family: "SpaceMono", monospace; font-size: 10.5px; color: var(--muted); padding-top: 9px; }
 .nlist { display: flex; flex-direction: column; gap: 10px; }
 .ncard { background: var(--ink2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
 .ncard .ts { font-family: "SpaceMono", monospace; font-size: 10px; letter-spacing: .08em; color: var(--accent); margin-bottom: 5px; }

@@ -130,6 +130,7 @@ export function getStandard(id: number) {
     allGroups: grpAll,
     memberGroupIds: memberIds,
     reviews,
+    now: Date.now(), // snapshot for relative-time display (kept out of render)
   };
 }
 

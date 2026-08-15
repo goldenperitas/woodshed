@@ -9,6 +9,7 @@ import AudioUploader from "@/components/AudioUploader";
 import ArtworkUploader from "@/components/ArtworkUploader";
 import AutoSaveText from "@/components/AutoSaveText";
 import NotesSection from "@/components/NotesSection";
+import ReviewLog from "@/components/ReviewLog";
 import GroupsSection from "@/components/GroupsSection";
 import EditStandard from "@/components/EditStandard";
 import StatusQuickSet from "@/components/StatusQuickSet";
@@ -20,7 +21,7 @@ export default async function StandardPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = getStandard(Number(id));
   if (!data) notFound();
-  const { standard: std, recordings, regions, notes, allGroups, memberGroupIds } = data;
+  const { standard: std, recordings, regions, notes, allGroups, memberGroupIds, reviews, now } = data;
   const accent = accentFor(std.title);
 
   return (
@@ -52,6 +53,10 @@ export default async function StandardPage({ params }: { params: Promise<{ id: s
 
         <section className="sec"><h4>ステータス</h4>
           <StatusQuickSet id={std.id} status={std.status} calledOften={std.calledOften === 1} />
+        </section>
+
+        <section className="sec"><h4>復習ログ</h4>
+          <ReviewLog reviews={reviews} now={now} />
         </section>
 
         <section className="sec"><h4>ジャケット</h4>
