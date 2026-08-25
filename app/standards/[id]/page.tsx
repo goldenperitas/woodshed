@@ -29,12 +29,23 @@ export default function StandardPage() {
   if (error) return <LocalError error={error} />;
   if (loading || !id) return <Booting label="めくっています" />;
   if (!data) {
+    // Shows the id it looked for: offline this page is rendered from a shared
+    // cached shell, so "not found" usually means the wrong id was read from
+    // the URL rather than that the tune is really missing.
     return (
       <div className="wrap" style={{ paddingTop: 40 }}>
         <p className="text-sm" style={{ color: "var(--muted)" }}>この曲は見つかりませんでした。</p>
-        <Link href="/" className="back" style={{ marginTop: 12, display: "inline-flex" }}>
-          <ArrowLeft size={15} strokeWidth={2} /> 棚に戻る
-        </Link>
+        <p className="mono" style={{ fontSize: 10, color: "var(--muted)", opacity: 0.6, marginTop: 6 }}>
+          id: {id}
+        </p>
+        <div style={{ display: "flex", gap: 10, marginTop: 12, alignItems: "center" }}>
+          <Link href="/" className="back" style={{ display: "inline-flex" }}>
+            <ArrowLeft size={15} strokeWidth={2} /> 棚に戻る
+          </Link>
+          <button className="btn btn-ghost text-sm" onClick={() => window.location.reload()}>
+            読み込み直す
+          </button>
+        </div>
       </div>
     );
   }

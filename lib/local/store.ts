@@ -4,6 +4,7 @@
 // to the database (a local mutation, or a sync pull landing new rows).
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { subscribe, getRevision } from "./bus";
 import { ready } from "./db";
 
@@ -16,10 +17,13 @@ export type QueryState<T> = { data: T | null; loading: boolean; error: Error | n
  */
 export function useLocalQuery<T>(fn: () => Promise<T>, deps: unknown[] = []): QueryState<T> {
   const revision = useSyncExternalStore(subscribe, getRevision, () => 0);
-  const [state, setState] = useState<QueryState<T>>({
+  // The key travels with the result, so a result can never be shown for a
+  // different set of inputs than the one it was fetched for.
+  const [state, setState] = useState<QueryState<T> & { key: string }>({
     data: null,
     loading: true,
     error: null,
+    key: "",
   });
 
   // Held in a ref so an inline arrow doesn't retrigger the effect every render.
@@ -29,15 +33,20 @@ export function useLocalQuery<T>(fn: () => Promise<T>, deps: unknown[] = []): Qu
     fnRef.current = fn;
   });
 
+  // Keyed by deps so a change reads as "loading", never as the previous
+  // result. Without this, the render right after an id arrives still holds the
+  // old query's `null` and the page flashes — or sticks on — "not found".
+  const key = JSON.stringify(deps);
+
   useEffect(() => {
     let cancelled = false;
     ready()
       .then(() => fnRef.current())
       .then((data) => {
-        if (!cancelled) setState({ data, loading: false, error: null });
+        if (!cancelled) setState({ data, loading: false, error: null, key });
       })
       .catch((error: Error) => {
-        if (!cancelled) setState({ data: null, loading: false, error });
+        if (!cancelled) setState({ data: null, loading: false, error, key });
       });
     return () => {
       cancelled = true;
@@ -45,24 +54,34 @@ export function useLocalQuery<T>(fn: () => Promise<T>, deps: unknown[] = []): Qu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision, ...deps]);
 
-  return state;
+  if (state.key !== key) return { data: null, loading: true, error: null };
+  return { data: state.data, loading: state.loading, error: state.error };
 }
 
-/** The id in /standards/<id>, read from the URL rather than from route props.
+/**
+ * The id in /standards/<id>.
  *
- * The service worker serves one cached shell for every standard when offline,
- * so the params baked into that shell belong to whichever page was cached.
- * The address bar is the only trustworthy source.
+ * Read from the address bar, not from route params: offline the service worker
+ * answers every tune URL with one cached shell, so the params baked into that
+ * shell belong to whichever tune happened to be cached. The URL is the only
+ * trustworthy source.
+ *
+ * usePathname supplies the *reactivity* — moving between two tunes keeps the
+ * same component mounted, so an effect that only ran once would keep serving
+ * the id of the tune opened before it.
  */
 export function useStandardId(): string | null {
+  const pathname = usePathname();
   const [id, setId] = useState<string | null>(null);
+
   useEffect(() => {
     const read = () =>
       setId(decodeURIComponent(window.location.pathname.split("/")[2] ?? "") || null);
     read();
     window.addEventListener("popstate", read);
     return () => window.removeEventListener("popstate", read);
-  }, []);
+  }, [pathname]);
+
   return id;
 }
 
