@@ -11,6 +11,7 @@
 
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import * as schema from "@/lib/sync/schema";
+import { SYNC_TABLES } from "@/lib/sync/schema";
 
 type Method = "run" | "all" | "values" | "get";
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void };
@@ -22,6 +23,7 @@ const pending = new Map<number, Pending>();
 function getWorker(): Worker {
   if (worker) return worker;
   worker = new Worker("/db-worker.js", { type: "module" });
+  installHandoff();
   worker.onmessage = (e: MessageEvent) => {
     const { id, ok, result, error } = e.data;
     const p = pending.get(id);
@@ -46,9 +48,58 @@ function call<T>(type: string, payload?: unknown): Promise<T> {
   });
 }
 
+/**
+ * Hands the database back when the page goes away, and takes it again when it
+ * comes back.
+ *
+ * Offline, Next cannot fetch a route payload, so navigation degrades to a full
+ * document load — and on iOS the outgoing document is often only frozen into
+ * the back/forward cache, worker and OPFS handles intact. Without this, the
+ * incoming document finds the database already claimed.
+ */
+let handoffInstalled = false;
+function installHandoff() {
+  if (handoffInstalled || typeof window === "undefined") return;
+  handoffInstalled = true;
+  window.addEventListener("pagehide", () => {
+    void call("close").catch(() => {});
+  });
+  // Reopening is lazy: the worker opens on the next query, so a restored page
+  // needs nothing here beyond its normal render.
+}
+
 /** Resolves once the database is open and migrated. Safe to await repeatedly. */
-export function ready(): Promise<{ version: string }> {
-  return call("init");
+export async function ready(): Promise<{ version: string }> {
+  const info = await call<{ version: string }>("init");
+  await assertNotSilentlyEmpty();
+  return info;
+}
+
+// A database that opens successfully but empty is indistinguishable, on screen,
+// from a library with nothing in it — the worst possible way to report a
+// storage failure. Tombstones make the real row count monotonic (deletes leave
+// rows behind), so "we had rows before and now have none" can only mean the
+// wrong file was opened.
+const ROW_MARKER = "woodshed.rowFloor";
+
+async function assertNotSilentlyEmpty(): Promise<void> {
+  if (typeof localStorage === "undefined") return;
+  const total = await totalRows();
+  if (total > 0) {
+    localStorage.setItem(ROW_MARKER, String(total));
+    return;
+  }
+  if (Number(localStorage.getItem(ROW_MARKER) ?? 0) > 0) {
+    throw new Error(
+      "この端末のデータを読み込めませんでした（空のデータベースが開かれています）",
+    );
+  }
+}
+
+async function totalRows(): Promise<number> {
+  const sql = SYNC_TABLES.map((t) => `SELECT COUNT(*) FROM ${t}`).join(" UNION ALL ");
+  const rows = await rawAll(sql);
+  return rows.reduce((sum, r) => sum + Number(r[0] ?? 0), 0);
 }
 
 /**

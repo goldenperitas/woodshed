@@ -15,6 +15,13 @@ const DB_PATH = "/woodshed.sqlite3";
 const POOL_NAME = "woodshed-pool";
 
 let db = null;
+let pool = null;
+let opening = null;
+let releaseLock = null;
+// Bumped by close(); open() compares against it so an open that was still
+// waiting on the lock when the page went away tears itself down instead of
+// silently reclaiming the database behind the next document's back.
+let generation = 0;
 
 // Every syncable row carries: a UUID primary key (so a device can mint IDs
 // while offline), updated_at (last-write-wins), deleted_at (tombstone — rows
@@ -135,13 +142,107 @@ CREATE TABLE IF NOT EXISTS sync_meta (
 );
 `;
 
-async function boot() {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The SAHPool VFS takes exclusive OPFS access handles. Only one worker in the
+// whole origin can hold them, and offline navigation makes contention routine:
+// the outgoing document's worker is still alive (or merely frozen in the
+// back/forward cache, which keeps its handles) while the incoming one boots.
+//
+// Two mechanisms keep that from surfacing as an empty library:
+//   1. a Web Lock, so a second document waits its turn instead of racing
+//   2. retries, for the window where a terminated worker's handles are still
+//      being reclaimed by the browser
+const LOCK_NAME = "woodshed-db-owner";
+const LOCK_TIMEOUT_MS = 10000;
+const ACQUIRE_ATTEMPTS = 15;
+const ACQUIRE_DELAY_MS = 200;
+
+function takeLock() {
+  if (!navigator.locks) return Promise.resolve();
+  return new Promise((granted, failed) => {
+    const timer = setTimeout(
+      () => failed(new Error("別のタブがデータベースを使用中です")),
+      LOCK_TIMEOUT_MS,
+    );
+    navigator.locks
+      .request(LOCK_NAME, { mode: "exclusive" }, () => {
+        clearTimeout(timer);
+        granted();
+        // Held until close() resolves it, which is what releases the lock.
+        return new Promise((release) => {
+          releaseLock = release;
+        });
+      })
+      .catch(failed);
+  });
+}
+
+async function installPool(sqlite3) {
+  let last;
+  for (let i = 0; i < ACQUIRE_ATTEMPTS; i++) {
+    try {
+      return await sqlite3.installOpfsSAHPoolVfs({ name: POOL_NAME });
+    } catch (e) {
+      last = e;
+      await sleep(ACQUIRE_DELAY_MS);
+    }
+  }
+  throw last;
+}
+
+async function open() {
+  const mine = generation;
   const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
-  const pool = await sqlite3.installOpfsSAHPoolVfs({ name: POOL_NAME });
+  await takeLock();
+  if (mine !== generation) {
+    // close() ran while we were queued behind another document's lock.
+    if (releaseLock) {
+      releaseLock();
+      releaseLock = null;
+    }
+    throw new Error("closed while opening");
+  }
+  if (!pool) pool = await installPool(sqlite3);
+  else if (pool.isPaused()) await pool.unpauseVfs();
   db = new pool.OpfsSAHPoolDb(DB_PATH);
   db.exec("PRAGMA foreign_keys = OFF");
   db.exec(SCHEMA);
   return { version: sqlite3.version.libVersion };
+}
+
+/** Opens on demand, so a close/reopen cycle around a navigation is invisible. */
+function ensureOpen() {
+  if (db) return Promise.resolve({ version: "open" });
+  if (!opening) {
+    opening = open().catch((e) => {
+      opening = null;
+      throw e;
+    });
+  }
+  return opening;
+}
+
+/**
+ * Hands the pool back so the next document can have it. Called when the page
+ * is hidden — including a back/forward-cache freeze, where the worker keeps
+ * running and would otherwise hold the handles indefinitely.
+ */
+async function close() {
+  generation++;
+  try {
+    db?.close();
+  } catch {
+    // already gone
+  }
+  db = null;
+  opening = null;
+  if (pool && !pool.isPaused()) await pool.pauseVfs();
+  if (releaseLock) {
+    releaseLock();
+    releaseLock = null;
+  }
+  return { ok: true };
 }
 
 // sqlite-wasm rejects `undefined` binds; drizzle emits them for absent values.
@@ -167,7 +268,8 @@ function run(sql, params, method) {
 }
 
 const handlers = {
-  init: () => bootPromise,
+  init: () => ensureOpen(),
+  close: () => close(),
   exec: ({ sql, params, method }) => run(sql, params, method),
   batch: ({ items }) => items.map((it) => run(it.sql, it.params, it.method)),
   // Whole-statement scripts (migrations, bulk sync application). Wrapped in a
@@ -185,12 +287,10 @@ const handlers = {
   },
 };
 
-const bootPromise = boot();
-
 self.onmessage = async (e) => {
   const { id, type, payload } = e.data;
   try {
-    await bootPromise;
+    if (type !== "close") await ensureOpen();
     const result = await handlers[type](payload ?? {});
     self.postMessage({ id, ok: true, result });
   } catch (err) {
