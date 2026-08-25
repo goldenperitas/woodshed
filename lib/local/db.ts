@@ -101,7 +101,7 @@ export async function ready(): Promise<{ version: string }> {
       ...(info.lockTimedOut ? { lockTimedOut: true } : {}),
     });
   }
-  await assertNotSilentlyEmpty();
+  await checkedNotEmpty();
   return info;
 }
 
@@ -111,6 +111,18 @@ export async function ready(): Promise<{ version: string }> {
 // rows behind), so "we had rows before and now have none" can only mean the
 // wrong file was opened.
 const ROW_MARKER = "woodshed.rowFloor";
+
+// Counted once per document, not once per query. ready() runs ahead of every
+// read, and the check walks all seven tables — cheap on its own, wasteful
+// several times a screen. The database cannot lose its contents while a
+// document holds it open: the one thing that empties it, rebuilding from the
+// diagnostics screen, reloads the page.
+let emptyCheck: Promise<void> | null = null;
+
+function checkedNotEmpty(): Promise<void> {
+  if (!emptyCheck) emptyCheck = assertNotSilentlyEmpty();
+  return emptyCheck;
+}
 
 async function assertNotSilentlyEmpty(): Promise<void> {
   if (typeof localStorage === "undefined") return;
@@ -194,6 +206,7 @@ export async function resetLocalDatabase(): Promise<void> {
   await call("close").catch(() => {});
   worker?.terminate();
   worker = null;
+  emptyCheck = null;
   const root = await navigator.storage.getDirectory();
   for await (const [name] of (root as unknown as { entries(): AsyncIterable<[string, unknown]> }).entries()) {
     if (name.includes("woodshed")) await root.removeEntry(name, { recursive: true });

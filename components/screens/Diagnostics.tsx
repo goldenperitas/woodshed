@@ -19,7 +19,9 @@ import type { LogEntry } from "@/lib/local/log";
 
 type Row = { label: string; value: string; bad?: boolean };
 
-const KEY_ASSETS = ["/sqlite/sqlite3.wasm", "/db-worker.js", "/standards/_shell", "/"];
+// The four things without which nothing opens offline. "/" is the shell,
+// and one shell now answers a navigation to any screen.
+const KEY_ASSETS = ["/sqlite/sqlite3.wasm", "/db-worker.js", "/", "/fonts/anton.woff2"];
 
 export default function Diagnostics() {
   const [rows, setRows] = useState<Row[] | null>(null);

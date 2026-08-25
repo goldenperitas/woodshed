@@ -6,7 +6,7 @@
 // Media is NOT cached here — audio and artwork live in IndexedDB and play via
 // object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v11";
+const CACHE = "woodshed-v12";
 // Jackets fetched from the Mac live in their own cache. The versioned cache is
 // emptied on every update — code and shells should be replaced wholesale — but
 // re-downloading artwork requires being online again, which is exactly what
@@ -16,18 +16,16 @@ const MEDIA_CACHE = "woodshed-media";
 // Precached on install so the first offline visit has a shell + fonts + icons.
 // Hashed /_next/static chunks can't be listed here (names change per build);
 // they get cached at runtime on the first online visit instead.
-// "/standards/_shell" is a stand-in: every tune page renders the same shell
-// and reads its id from the address bar, so one cached copy serves them all.
-const STANDARD_SHELL = "/standards/_shell";
+//
+// One document covers every screen. The server sends the same bytes for every
+// URL — the screen is chosen on the device from the address bar (see
+// components/Screen.tsx) — so there is nothing per-route left to precache, and
+// no way for a document cached under one address to render as the wrong
+// screen under another.
+const SHELL = "/";
 
 const PRECACHE = [
-  "/",
-  "/drill",
-  "/groups",
-  "/listening",
-  "/standards/new",
-  "/debug",
-  STANDARD_SHELL,
+  SHELL,
   "/db-worker.js",
   "/sqlite/sqlite3.mjs",
   "/sqlite/sqlite3.wasm",
@@ -123,18 +121,17 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Route payloads (the router's own fetches, marked with an RSC header) are
-  // not documents. Answering one with the HTML shell does not merely fail to
-  // render — the router sees a reply that is not a payload, treats the
-  // navigation as a full page load, and sends the browser to the *response's*
-  // URL, which is whichever tune was cached into the shell slot last. That is
-  // how tapping a never-opened tune offline landed on the previous one.
+  // Route payloads (the router's own fetches, marked with an RSC header). The
+  // app navigates with pushState now, so offline it should never ask for one —
+  // sw.payload.miss going above zero in the event log means something started
+  // using the router again.
   //
-  // So: serve a payload only from a genuine cached payload, and otherwise let
-  // the request fail. A failed payload fetch makes the router fall back to a
-  // plain navigation to the href that was tapped, and that navigation is served
-  // the shell below. Slower than a client-side transition, but it lands on the
-  // right tune.
+  // Answering one with the HTML shell is what made a tap on a never-opened
+  // tune land on the previously opened one: the router sees a reply that is not
+  // a payload, treats the navigation as a full page load, and sends the browser
+  // to the *response's* URL. So serve a payload only from a genuine cached
+  // payload and otherwise let the request fail — the router then falls back to
+  // a plain navigation to the href that was tapped.
   //
   // Note what this deliberately does not do: an earlier attempt served payloads
   // from a normalized cache key, inventing a payload for a route the device had
@@ -156,45 +153,39 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Documents: network-first, falling back through progressively more generic
-  // shells. A tune this device has never opened still works, because the shell
-  // is identical for every id and the page reads which tune to show from the
-  // address bar.
+  // Everything else that is not a page — the icon, the manifest. Keyed on
+  // itself, because unlike documents these really are different files.
+  if (req.mode !== "navigate") {
+    e.respondWith(fetch(req).then((res) => put(req, res)).catch(() => caches.match(req)));
+    return;
+  }
+
+  // Documents: network-first, falling back to the one shell. A screen this
+  // device has never opened still works, because every document *is* the same
+  // document and the screen is picked from the address bar.
   e.respondWith(
     fetch(req)
       .then((res) => {
-        // Only a real HTML document may become the shell. Next prefetches tune
-        // links as route payloads, which share the URL but return flight data —
-        // storing one of those as the shell means a later offline navigation
-        // renders the payload as text instead of the page.
+        // Only a real HTML document may be kept as the shell — never a route
+        // payload, which shares the URL but carries flight data and would
+        // render as text.
         if (isDocumentResponse(req, res)) {
           const shell = res.clone();
-          caches.open(CACHE).then((c) => c.put(documentKey(url), shell));
+          caches.open(CACHE).then((c) => c.put(SHELL, shell));
         }
-        return put(req, res);
+        return res;
       })
       .catch(async () => {
-        const exact = await caches.match(req);
-        if (exact) {
-          report("sw.doc", { path: url.pathname, from: "exact" });
-          return exact;
-        }
-        const shell = await caches.match(documentKey(url));
+        const shell = await caches.match(SHELL);
         if (shell) {
-          report("sw.doc", { path: url.pathname, from: "shell", key: documentKey(url) });
+          report("sw.doc", { path: url.pathname, from: "shell" });
           return shell;
         }
-        report("sw.doc", { path: url.pathname, from: "root" });
-        return caches.match("/");
+        report("sw.doc", { path: url.pathname, from: "miss" });
+        return Response.error();
       }),
   );
 });
-
-// A tune page URL is the one route whose id is unbounded; everything else is
-// a fixed path and can key on itself.
-function isTunePage(url) {
-  return url.pathname.startsWith("/standards/") && url.pathname !== "/standards/new";
-}
 
 // A cached document keyed by a payload URL would poison the router the same way
 // a live one does, so the fallback checks what it found before handing it over.
@@ -210,13 +201,6 @@ function isDocumentResponse(req, res) {
     (res.headers.get("content-type") || "").includes("text/html")
   );
 }
-
-function documentKey(url) {
-  return isTunePage(url) ? STANDARD_SHELL : url.pathname;
-}
-
-
-
 
 function put(req, res, cacheName) {
   if (res && res.ok && res.type === "basic") {

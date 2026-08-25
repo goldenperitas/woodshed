@@ -139,7 +139,7 @@ async function warmUp(ctx, { assets = false } = {}) {
       const out = {};
       for (const a of list) out[a] = !!(await caches.match(a));
       return out;
-    }, ["/sqlite/sqlite3.wasm", "/db-worker.js", "/standards/_shell", "/", "/debug"]);
+    }, ["/sqlite/sqlite3.wasm", "/db-worker.js", "/", "/fonts/anton.woff2"]);
     for (const [asset, ok] of Object.entries(cached)) check("cached " + asset, ok);
   }
 
@@ -155,11 +155,6 @@ async function meter(page, label) {
   );
   const count = (ev) => journey.filter((e) => e.ev === ev).length;
   const opens = journey.filter((e) => e.ev === "db.open");
-  check(
-    `${label}: the event log is recording`,
-    journey.length > 0,
-    `boot=${count("boot")} db.open=${opens.length} entries=${journey.length}`,
-  );
   check(
     `${label}: nothing threw`,
     count("error") === 0,
@@ -187,8 +182,16 @@ async function journey(ctx) {
   await page.waitForTimeout(3500);
   check("wall opens offline", (await p.wallCount()) === "81", "count=" + (await p.wallCount()));
 
+  // The instrument has to be alive before its silence means anything.
+  const written = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("woodshed.log") || "[]").length,
+  );
+  check("the device is keeping a log", written > 0, `entries=${written}`);
+
   // From here on, nothing but taps and the back button. The meter restarts so
   // it counts what those cost — which is the whole point of the exercise.
+  // An empty log for this stretch is the goal, not a failure: no document
+  // reloaded, so nothing had anything to report.
   await startMeter(page);
 
   const landedA = await p.openTune(tunes.A);
@@ -317,6 +320,15 @@ async function relaunch(ctx) {
   await fresh.goto(BASE + "/", { waitUntil: "domcontentloaded" }).catch(() => {});
   await fresh.waitForTimeout(3000);
   check("and the wall is all there", (await pf.wallCount()) === "81", "count=" + (await pf.wallCount()));
+
+  // A cold load of a screen that no longer has a document of its own. One
+  // cached shell has to answer for all of them.
+  for (const { href, marker } of SCREENS) {
+    await fresh.goto(BASE + href, { waitUntil: "domcontentloaded" }).catch(() => {});
+    await fresh.waitForTimeout(3000);
+    const st = await pf.screenState(marker);
+    check(`cold load of ${href} offline`, st === "OK" && pf.pathOf() === href, `${st} @ ${pf.pathOf()}`);
+  }
 
   await meter(fresh, "開き直し");
 }

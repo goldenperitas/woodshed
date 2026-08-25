@@ -61,28 +61,18 @@ export function useLocalQuery<T>(fn: () => Promise<T>, deps: unknown[] = []): Qu
 /**
  * The id in /standards/<id>.
  *
- * Read from the address bar, not from route params: offline the service worker
- * answers every tune URL with one cached shell, so the params baked into that
- * shell belong to whichever tune happened to be cached. The URL is the only
- * trustworthy source.
+ * Taken from the address bar rather than from route params: offline a document
+ * can be served from a shell that was fetched for some other URL, so anything
+ * baked into it belongs to whenever it was cached. The address bar is the one
+ * thing that cannot be wrong.
  *
- * usePathname supplies the *reactivity* — moving between two tunes keeps the
- * same component mounted, so an effect that only ran once would keep serving
- * the id of the tune opened before it.
+ * usePathname supplies the *reactivity* — moving between two tunes keeps this
+ * component mounted, and it is what makes the id recompute.
  */
 export function useStandardId(): string | null {
   const pathname = usePathname();
-  const [id, setId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const read = () =>
-      setId(decodeURIComponent(window.location.pathname.split("/")[2] ?? "") || null);
-    read();
-    window.addEventListener("popstate", read);
-    return () => window.removeEventListener("popstate", read);
-  }, [pathname]);
-
-  return id;
+  const path = typeof window === "undefined" ? pathname : window.location.pathname;
+  return decodeURIComponent(path.split("/")[2] ?? "") || null;
 }
 
 /** Wrap an async mutation so the UI can show in-flight state and errors. */
