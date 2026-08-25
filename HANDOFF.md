@@ -1,6 +1,6 @@
 # 引き継ぎ — Woodshed ローカルファースト化
 
-前任者からの引き継ぎ。**未解決のバグが1件**あり、再現手段は用意してある。
+前任者からの引き継ぎ。**§2 のバグは修正済み**（`npm run test:offline` 全項目 PASS）。
 
 まず `README.md` の「データの流れ」を読むこと。ここではそこに書いていない
 「今どうなっているか」「何を壊してはいけないか」だけを書く。
@@ -28,82 +28,61 @@
 
 ---
 
-## 2. 未解決バグ（最優先）
+## 2. 直したバグ — 「別の曲を押すと前の曲に着地する」
+
+**修正済み。** `public/sw.js` の RSC ペイロード分岐。原因は前任者の仮説とは
+別物だったので、経緯を残す。
 
 ### 症状
 
-圏外で、**一覧から「まだ一度も開いたことがない曲」のリンクを押すと、
-直前に開いた曲のURLに着地する**。結果、前の曲の画面が表示される。
+圏外で、一覧から「まだ一度も開いたことがない曲」のリンクを押すと、直前に
+開いた曲のURLに着地する。実機（iPhone PWA）の報告と一致していた。
 
-実機（iPhone PWA）でユーザーが報告した症状と一致する。ユーザー報告では
-「見つかりませんでした」も出ていたが、それは修正済みの別要因（§3）。
+### 実際の原因
 
-### 再現手順
+SWのフォールバックが、**ルーターのペイロード要求（`RSC: 1` ヘッダ）に対して
+HTMLシェルを返していた**。
 
-```bash
-npm run build
-npx next start -p 3100        # 別ターミナルで起動したまま
-node scripts/offline-test.js
+シェルの実体は「最後にオンラインで開いた曲のHTML」で、その Response は
+`Response.url` として**その曲のURL**を持っている。Next のルーターは、返って
+きたものがペイロードでないと判断すると「フルページ遷移すべき」と解釈し、
+**遷移先として `response.url` を使う**。だから曲Bを押すと曲Aへ飛んだ。
+
+SWにログを仕込んで確認した実際の並び:
+
+```
+{ev:"doc", url:"/standards/5815763c…", mode:"cors", rsc:"1", prefetch:"1"}
+{ev:"fallback:shell", url:"/standards/5815763c…", key:"/standards/_shell",
+ resUrl:"http://localhost:3100/standards/72148163…"}   ← 曲AのURLを持つ
+{ev:"doc", url:"/standards/72148163…", mode:"navigate"} ← ブラウザが曲Aへ
 ```
 
-現在の出力（`764350f` 時点）:
+### 前任者の仮説は外れていた
 
-```
---- offline ---
-PASS  wall opens offline  — count=81
-   [nav] want=/standards/72148163-… links=1 / -> /standards/72148163-…
-PASS  tune A opens offline  — 'Round Midnight @ /standards/72148163-…
-PASS  back to the wall  — count=81
-   [nav] want=/standards/5815763c-… links=1 / -> /standards/72148163-…
-FAIL  tune B (never opened online) opens offline  — 'Round Midnight @ /standards/72148163-…
-FAIL  tune B is a different tune from A  — 'Round Midnight vs 'Round Midnight
-PASS  tune A still works after B  — 'Round Midnight -> 'Round Midnight
-```
+「ナビゲーションに別URLの Response を返すとブラウザが文書のURLを合わせる」
+という仮説（および `new Response(await shell.blob(), …)` でURLを剥がす修正案）
+は**誤り**。曲Bのナビゲーションには今も曲AのURLを持つシェルを返しているが、
+着地先は曲Bのままで全項目 PASS する。ブラウザは文書URLを書き換えない。
+URLを読んでいたのは Next のルーターだった。
 
-`want=` と着地先の `->` が食い違っているのが本体。リンクは見つかっており
-（`links=1`）、クリックも成功している。**URLだけが別物になる。**
+剥がす修正だけを入れても直らなかったので、入れていない。
 
-### 最有力の仮説（未検証）
+### 修正
 
-`public/sw.js` の文書フォールバックが、**曲Aのときにキャッシュした Response を
-そのまま曲Bのナビゲーションに返している**。
+ペイロード要求は、**本物のキャッシュ済みペイロード（`text/x-component`）が
+あるときだけ**返す。無ければ `Response.error()` で落とす。落ちるとルーターは
+押されたhrefへの素のナビゲーションに切り替え、それがシェルを受け取って
+正しい曲を描く。
 
-```js
-// public/sw.js — オフライン時のフォールバック
-const shell = await caches.match(documentKey(url));   // documentKey は全曲共通で "/standards/_shell"
-if (shell) return shell;
-```
+なお「ペイロードを正規化キーで作って返す」のは §8-3 のとおり実機を壊した手。
+**落とすのは安全、でっち上げるのは危険。**
 
-キャッシュされた Response は `Response.url` として**曲AのURL**を持っている。
-ナビゲーションに対して別URLを持つ Response を返すと、ブラウザはリダイレクト
-同様に扱い、**文書のURLを Response 側のURLに合わせる**。これなら
-「Bを押したのにAのURLに着地する」が完全に説明できる。
+### テスト
 
-確認方法（1行）: SW のフォールバック直前で `shell.url` をログに出し、
-要求されたURLと一致しているか見る。一致していなければ仮説は正しい。
-
-修正方針: キャッシュしたものをそのまま返さず、**URLを持たない Response に
-作り直して返す**。
-
-```js
-const shell = await caches.match(documentKey(url));
-if (shell) {
-  return new Response(await shell.blob(), {
-    status: shell.status,
-    headers: shell.headers,
-  });
-}
-```
-
-※ この修正案自体もまだ検証していない。必ず `npm run test:offline` で
-確認すること。
-
-### 直したあと必ず確認すること
-
-`scripts/offline-test.js` が **全項目 PASS** になること。特に:
-
-- `tune B is a different tune from A` — これが通らないと直っていない
-- `tune B ... opens offline` の `@ /standards/…` が **want と一致**すること
+`scripts/offline-test.js` を拡張した。曲Cを追加（シェル枠は1曲ぶんしか無く、
+曲Bを開くと上書きされる。曲Cが通ることで「直前の曲に固定される」形の再発を
+拾える）、および `/listening` `/drill` `/groups` を圏外でタップして着地URLと
+画面固有の文字列を確認する。修正を戻すとこのテストは FAIL する（確認済み）。
 
 ---
 
@@ -111,6 +90,7 @@ if (shell) {
 
 | 症状 | 原因 | 対処 |
 | --- | --- | --- |
+| 別の曲を押すと前の曲に着地 | SWがRSCペイロード要求にHTMLシェルを返し、ルーターがその `response.url` へフルページ遷移した | ペイロード要求は本物のペイロードがある時だけ返し、無ければ落とす（`public/sw.js`） |
 | 一覧が0曲になる | 圏外の遷移がフルページ読み込みに落ち、前の文書のWorkerがOPFSハンドルを掴んだまま次が起動 | `pagehide` でプールを明け渡し、次のクエリで開き直す（`public/db-worker.js`） |
 | 曲→曲で前の曲が出る | ページが再マウントされず、URLからIDを読むeffectが再実行されない。`pushState` は `popstate` を発火しない | `usePathname()` を依存に追加（`lib/local/store.ts`） |
 | 一瞬「見つかりません」 | ID確定前の `null` を結果として描画 | クエリ結果に入力キーを持たせる（`lib/local/store.ts`） |
@@ -202,14 +182,15 @@ Macから、音源はIndexedDBに残る）。
 
 ## 8. 残タスク
 
-1. **§2 のバグ修正**（最優先）
-2. 認証。現在は誰でも `/api/sync` を叩ける。他人に使わせるならここが必須
-3. オフラインの画面遷移がフルページ読み込みに落ちる件。動作はするが遅い。
+1. 認証。現在は誰でも `/api/sync` を叩ける。他人に使わせるならここが必須
+2. オフラインの画面遷移がフルページ読み込みに落ちる件。動作はするが遅い。
    Nextは RSC レスポンスに `Vary: next-router-state-tree` を付けるため
    通常のキャッシュが当たらない。正規化キーで保存する案を一度入れたが、
    実機でナビゲーションが止まったため撤回済み（`7664ee7`）。
-   **再挑戦するなら必ず `npm run test:offline` で確認してから**
-4. `data/woodshed-pre-uuid-*.db` は移行前のバックアップ。しばらく残す
+   **再挑戦するなら必ず `npm run test:offline` で確認してから**。
+   §2 の修正で、ペイロード要求はキャッシュに本物がある時しか返さなくなった。
+   正規化キーの案を再度入れるなら、まずここを崩すことになると理解しておくこと
+3. `data/woodshed-pre-uuid-*.db` は移行前のバックアップ。しばらく残す
 
 ---
 

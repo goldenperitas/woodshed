@@ -11,13 +11,13 @@
 //   node scripts/offline-test.js
 //
 // Reproduces the sequence that fails on the iPhone:
-//   warm online -> go offline -> tune A -> wall -> tune B -> wall -> tune A
+//   warm online -> go offline -> tune A -> wall -> tune B -> wall -> tune C
+//   -> wall -> tune A -> each of the other screens
 //
 // Assertions are deliberately strict about what counts as a working page. An
 // earlier, looser version reported PASS while the page was actually rendering
 // the router's flight payload as plain text.
 
-const path = require("node:path");
 const { chromium } = require("playwright-core");
 
 const BASE = process.env.BASE || "http://localhost:3100";
@@ -53,6 +53,21 @@ const check = (name, ok, detail = "") => {
     if (!/棚に戻る/.test(t) || !/コード解釈/.test(t) || !/ステータス/.test(t)) return "NOT_A_TUNE_PAGE";
     return t.split("\n").map((l) => l.trim()).filter(Boolean)[1] ?? "?";
   };
+  // Screens other than tune pages. Offline these are reached the same way — the
+  // router's payload fetch fails and the navigation falls through to the shell —
+  // so each one needs a marker only it renders.
+  const SCREENS = [
+    { href: "/listening", marker: /LISTENING ROOM/ },
+    { href: "/drill", marker: /曲名 → 情報/ },
+    { href: "/groups", marker: /似た曲をまとめて/ },
+  ];
+  const screenState = async (marker) => {
+    const t = await bodyText();
+    if (/^\d+:[A-Z]\[/m.test(t) || /"ViewportBoundary"/.test(t)) return "RAW_PAYLOAD";
+    if (/棚を開けられませんでした/.test(t)) return "DB_ERROR";
+    return marker.test(t) ? "OK" : "NO_MARKER";
+  };
+
   const isTune = (v) =>
     !["DB_ERROR", "RAW_PAYLOAD", "NOT_A_TUNE_PAGE", "?"].includes(v) && !v.startsWith("NOT_FOUND");
 
@@ -82,7 +97,10 @@ const check = (name, ok, detail = "") => {
   );
   const TUNE_A = hrefs[0];
   const TUNE_B = hrefs[10];
-  log(`   TUNE_A=${TUNE_A}\n   TUNE_B=${TUNE_B}`);
+  // A third unopened tune: the shell slot holds one document, and opening B
+  // rewrites it. C proves the next tune is not pinned to whatever B left there.
+  const TUNE_C = hrefs[20];
+  log(`   TUNE_A=${TUNE_A}\n   TUNE_B=${TUNE_B}\n   TUNE_C=${TUNE_C}`);
 
   // Warm every screen, opening only TUNE_A, so TUNE_B is genuinely a page this
   // device has never fetched.
@@ -134,9 +152,27 @@ const check = (name, ok, detail = "") => {
 
   await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
   await page.waitForTimeout(2500);
+  const landedC = await openTune(TUNE_C);
+  const c = await tuneState();
+  check("tune C (never opened online) opens offline", isTune(c) && landedC === TUNE_C, `${c} @ ${landedC}`);
+  check("tune C is a different tune from A and B", c !== a1 && c !== b, `${a1} / ${b} / ${c}`);
+
+  await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
+  await page.waitForTimeout(2500);
   const landedA2 = await openTune(TUNE_A);
   const a2 = await tuneState();
   check("tune A still works after B", isTune(a2) && a2 === a1 && landedA2 === TUNE_A, `${a1} -> ${a2} @ ${landedA2}`);
+
+  // The other screens, reached by tapping the wall's nav the way a hand does.
+  for (const { href, marker } of SCREENS) {
+    await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }).catch(() => {});
+    await page.waitForTimeout(2500);
+    const link = page.locator(`a[href="${href}"]`).first();
+    if (await link.count()) await link.click().catch((e) => log("   [click error] " + e.message.slice(0, 80)));
+    await page.waitForTimeout(3000);
+    const st = await screenState(marker);
+    check(`${href} opens offline`, st === "OK" && pathOf() === href, `${st} @ ${pathOf()}`);
+  }
 
   await browser.close();
   log(failures ? `\n${failures} FAILURE(S)` : "\nall offline checks passed");

@@ -6,7 +6,7 @@
 // Media is NOT cached here — audio and artwork live in IndexedDB and play via
 // object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v8";
+const CACHE = "woodshed-v9";
 // Jackets fetched from the Mac live in their own cache. The versioned cache is
 // emptied on every update — code and shells should be replaced wholesale — but
 // re-downloading artwork requires being online again, which is exactly what
@@ -109,14 +109,39 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
+  // Route payloads (the router's own fetches, marked with an RSC header) are
+  // not documents. Answering one with the HTML shell does not merely fail to
+  // render — the router sees a reply that is not a payload, treats the
+  // navigation as a full page load, and sends the browser to the *response's*
+  // URL, which is whichever tune was cached into the shell slot last. That is
+  // how tapping a never-opened tune offline landed on the previous one.
+  //
+  // So: serve a payload only from a genuine cached payload, and otherwise let
+  // the request fail. A failed payload fetch makes the router fall back to a
+  // plain navigation to the href that was tapped, and that navigation is served
+  // the shell below. Slower than a client-side transition, but it lands on the
+  // right tune.
+  //
+  // Note what this deliberately does not do: an earlier attempt served payloads
+  // from a normalized cache key, inventing a payload for a route the device had
+  // never fetched, and navigation stopped on the phone (reverted in 7664ee7).
+  // Failing is safe; guessing is not.
+  if (req.headers.get("RSC")) {
+    e.respondWith(
+      fetch(req)
+        .then((res) => put(req, res))
+        .catch(async () => {
+          const exact = await caches.match(req);
+          return exact && isPayloadResponse(exact) ? exact : Response.error();
+        }),
+    );
+    return;
+  }
+
   // Documents: network-first, falling back through progressively more generic
   // shells. A tune this device has never opened still works, because the shell
   // is identical for every id and the page reads which tune to show from the
   // address bar.
-  //
-  // Offline, Next cannot fetch a route payload, so every navigation arrives
-  // here as a full document load. That is slow but correct; intercepting the
-  // payload requests to avoid it was tried and broke navigation outright.
   e.respondWith(
     fetch(req)
       .then((res) => {
@@ -144,6 +169,12 @@ self.addEventListener("fetch", (e) => {
 // a fixed path and can key on itself.
 function isTunePage(url) {
   return url.pathname.startsWith("/standards/") && url.pathname !== "/standards/new";
+}
+
+// A cached document keyed by a payload URL would poison the router the same way
+// a live one does, so the fallback checks what it found before handing it over.
+function isPayloadResponse(res) {
+  return (res.headers.get("content-type") || "").includes("text/x-component");
 }
 
 function isDocumentResponse(req, res) {
