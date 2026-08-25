@@ -1,16 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Play, Pause, Plus, X, Star, Pencil, Trash2, Download, Check, PenLine } from "lucide-react";
-import type { Recording, Region, Standard } from "@/lib/db/schema";
+import type { Recording, Region, Standard } from "@/lib/sync/schema";
 import { REGION_LABELS, NOTE_TAGS, NOTE_TAG_LABEL } from "@/lib/constants";
 import { accentFor } from "@/lib/sleeve";
 import { fmtTime } from "@/lib/format";
 import {
   addRegion, deleteRegion, setReference, deleteRecording, updateRecording, addNote,
-} from "@/app/actions";
-import { saveOffline, removeOffline, getOfflineBlob, listOfflineKeys } from "@/lib/offline";
+} from "@/lib/local/mutations";
+import { saveOffline, removeOffline, getOfflineBlob, listOfflineKeys, resolveMediaUrl } from "@/lib/offline";
+import { useMediaUrl } from "@/lib/local/media";
 import { usePlayer } from "@/components/player/PlayerProvider";
 
 const RATES = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
@@ -22,7 +22,6 @@ type LocalLoop = { n: string; s: number; e: number } | null;
 export default function Woodshed({
   standard, recordings, regions,
 }: { standard: Standard; recordings: Recording[]; regions: Region[] }) {
-  const router = useRouter();
   const player = usePlayer();
   const accent = accentFor(standard.title);
 
@@ -63,6 +62,8 @@ export default function Woodshed({
 
   useEffect(() => { listOfflineKeys().then((ks) => setOfflineSet(new Set(ks))); }, []);
 
+  const artUrl = useMediaUrl(standard.artworkPath);
+
   // While this take is the one playing on its own page, keep it repeating —
   // even if it was started from the Listening Room (which plays through).
   useEffect(() => { if (isThis) player.setRepeat(true); }, [isThis, player]);
@@ -72,9 +73,9 @@ export default function Woodshed({
     if (!take) { setSrc(null); return; }
     let created: string | null = null;
     setLocalLoop(null); setMarkA(null); setMarkB(null); setNoteAt(null);
-    getOfflineBlob(take.filePath).then((blob) => {
-      if (blob) { created = URL.createObjectURL(blob); setSrc(created); }
-      else setSrc("/" + take.filePath);
+    resolveMediaUrl(take.filePath).then((u) => {
+      if (u?.startsWith("blob:")) created = u;
+      setSrc(u);
     });
     return () => {
       if (created && playerSrcRef.current !== created) URL.revokeObjectURL(created);
@@ -88,7 +89,7 @@ export default function Woodshed({
         id: take.filePath, src,
         title: standard.title,
         subtitle: take.performer || take.originalName || "無名の録音",
-        accent, artworkPath: standard.artworkPath,
+        accent, artworkPath: standard.artworkPath, artworkUrl: artUrl,
         href: `/standards/${standard.id}`,
       },
       {
@@ -98,7 +99,7 @@ export default function Woodshed({
         repeat: true, // on the tune page, keep repeating this take
       },
     );
-  }, [take, src, standard, accent, localRate, localLoop, player]);
+  }, [take, src, standard, accent, artUrl, localRate, localLoop, player]);
 
   const togglePlay = () => { if (isThis) player.toggle(); else loadThis({ autoplay: true }); };
   const seek = (t: number) => { if (isThis) player.seek(t); else loadThis({ autoplay: true }); };
@@ -118,17 +119,20 @@ export default function Woodshed({
     const s = Math.min(markA, markB), e = Math.max(markA, markB);
     if (e - s < 0.3) return;
     await addRegion(take.id, standard.id, { label: regLabel, startSec: s, endSec: e });
-    setMarkA(null); setMarkB(null); router.refresh();
+    setMarkA(null); setMarkB(null);
   };
 
   const saveNote = async () => {
     if (!noteBody.trim() || noteAt === null || !take) return;
     await addNote(standard.id, { body: noteBody, tag: noteTag, recordingId: take.id, timestampSec: noteAt });
-    setNoteBody(""); setNoteAt(null); router.refresh();
+    setNoteBody(""); setNoteAt(null);
   };
 
+  // Only legacy takes — the ones whose bytes still sit in public/audio on the
+  // Mac — can be toggled. Anything added on a device is already device-local
+  // and has nowhere to be re-fetched from, so dropping it would destroy it.
   const toggleOffline = useCallback(async () => {
-    if (!take) return;
+    if (!take || take.filePath.startsWith("local:")) return;
     const key = take.filePath;
     const next = new Set(offlineSet);
     try {
@@ -156,9 +160,9 @@ export default function Woodshed({
         <div className="turntable">
           <div className={`disc ${playing ? "spinning" : ""}`} style={{ ["--spin" as string]: spin }}>
             <div className="disc-label">
-              {standard.artworkPath
+              {artUrl
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={"/" + standard.artworkPath} alt="" />
+                ? <img src={artUrl} alt="" />
                 : <span className="lt">{standard.title.split(" ").slice(0, 2).join(" ")}</span>}
             </div>
           </div>
@@ -192,7 +196,7 @@ export default function Woodshed({
                 <div className="d">{[r.year, r.instrumentation, r.durationSec ? fmtTime(r.durationSec) : null].filter(Boolean).join(" · ") || "情報未設定"}</div>
                 <div className="bd">
                   {r.isReference === 1 && <span className="ref"><Star size={11} strokeWidth={2} fill="currentColor" /> REF</span>}
-                  {offlineSet.has(r.filePath) && <span className="off"><Download size={11} strokeWidth={2} /> TAPE</span>}
+                  {(r.filePath.startsWith("local:") || offlineSet.has(r.filePath)) && <span className="off"><Download size={11} strokeWidth={2} /> TAPE</span>}
                 </div>
               </button>
             ))}
@@ -234,7 +238,7 @@ export default function Woodshed({
                   {r.label || "区間"} {fmtTime(r.startSec)}–{fmtTime(r.endSec)}
                 </button>
                 <button className="chip" title="削除" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "none", color: "var(--muted)" }}
-                  onClick={async () => { await deleteRegion(r.id, standard.id); clearLoop(); router.refresh(); }}><X size={13} strokeWidth={2} /></button>
+                  onClick={async () => { await deleteRegion(r.id, standard.id); clearLoop(); }}><X size={13} strokeWidth={2} /></button>
               </span>
             ))}
             {localLoop && <button className="chip" onClick={clearLoop}>解除</button>}
@@ -252,10 +256,12 @@ export default function Woodshed({
           {/* timestamp note + per-take controls */}
           <div className="chips" style={{ marginTop: 14 }}>
             {noteAt === null && <button className="chip" onClick={() => setNoteAt(pos)}><PenLine size={13} strokeWidth={2} /> {fmtTime(pos)} にメモ</button>}
-            <button className="chip" onClick={toggleOffline}>{offlineSet.has(take.filePath) ? <><Check size={13} strokeWidth={2} /> Saved</> : <><Download size={13} strokeWidth={2} /> Save</>}</button>
-            {take.isReference !== 1 && <button className="chip" onClick={async () => { await setReference(take.id, standard.id); router.refresh(); }}><Star size={13} strokeWidth={2} /> Ref</button>}
+            {take.filePath.startsWith("local:")
+              ? <span className="chip on" title="この端末にある音源"><Check size={13} strokeWidth={2} /> On device</span>
+              : <button className="chip" onClick={toggleOffline}>{offlineSet.has(take.filePath) ? <><Check size={13} strokeWidth={2} /> Saved</> : <><Download size={13} strokeWidth={2} /> Save</>}</button>}
+            {take.isReference !== 1 && <button className="chip" onClick={async () => { await setReference(take.id, standard.id); }}><Star size={13} strokeWidth={2} /> Ref</button>}
             <button className="chip" aria-label="テイク情報" title="テイク情報" onClick={() => setShowTakeEdit((v) => !v)}><Pencil size={13} strokeWidth={2} /></button>
-            <button className="chip" aria-label="テイクを削除" title="削除" style={{ color: "#ef8f7e", borderColor: "#5a3128" }} onClick={async () => { if (confirm("このテイクを削除？")) { if (isThis) player.stop(); if (offlineSet.has(take.filePath)) await removeOffline(take.filePath); await deleteRecording(take.id, standard.id); setTakeIdx(0); router.refresh(); } }}><Trash2 size={13} strokeWidth={2} /></button>
+            <button className="chip" aria-label="テイクを削除" title="削除" style={{ color: "#ef8f7e", borderColor: "#5a3128" }} onClick={async () => { if (confirm("このテイクを削除？")) { if (isThis) player.stop(); if (offlineSet.has(take.filePath)) await removeOffline(take.filePath); await deleteRecording(take.id, standard.id); setTakeIdx(0); } }}><Trash2 size={13} strokeWidth={2} /></button>
           </div>
 
           {noteAt !== null && (
@@ -274,7 +280,7 @@ export default function Woodshed({
 
           {showTakeEdit && (
             <form className="card" style={{ padding: 12, marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}
-              action={async (fd) => { await updateRecording(take.id, standard.id, fd); setShowTakeEdit(false); router.refresh(); }}>
+              action={async (fd) => { await updateRecording(take.id, standard.id, fd); setShowTakeEdit(false); }}>
               <input name="performer" className="input" placeholder="演奏者" defaultValue={take.performer ?? ""} />
               <input name="year" className="input" placeholder="年" inputMode="numeric" defaultValue={take.year ?? ""} />
               <input name="instrumentation" className="input" placeholder="編成" defaultValue={take.instrumentation ?? ""} />

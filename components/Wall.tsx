@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Target, Library, Plus, Search, Radio, X } from "lucide-react";
-import type { StandardListItem } from "@/lib/db/queries";
+import type { StandardListItem } from "@/lib/local/queries";
 import Sleeve from "./Sleeve";
 import RandomQuote from "./RandomQuote";
 

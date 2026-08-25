@@ -1,9 +1,15 @@
 "use client";
 
-// Offline audio store for iPhone. We keep full Blobs in IndexedDB and play
-// them via object URLs — the browser then has the whole file, so seeking,
+// This device's media. Audio and artwork are kept here as whole Blobs and
+// played via object URLs — the browser then has the entire file, so seeking,
 // looping and slow playback all work (unlike SW-streamed Range requests,
 // which Safari handles poorly).
+//
+// Media never goes to the server. Newly added files get a "local:<uuid>" key
+// that lives only on the device that added them; sync carries the metadata
+// row naming that key, not the bytes. Paths without the prefix are legacy
+// uploads still sitting in public/audio on the Mac, and are fetched over HTTP
+// when it is reachable.
 
 const DB_NAME = "woodshed-offline";
 const STORE = "audio";
@@ -62,4 +68,28 @@ export async function storageEstimate(): Promise<{ usage: number; quota: number 
     return { usage: e.usage ?? 0, quota: e.quota ?? 0 };
   }
   return { usage: 0, quota: 0 };
+}
+
+/** Store a picked file and return the key to record on the row. */
+export async function saveFileOffline(file: Blob): Promise<string> {
+  const key = "local:" + crypto.randomUUID();
+  await tx("readwrite", (s) => s.put({ key, blob: file, savedAt: Date.now() }));
+  return key;
+}
+
+/**
+ * A URL the <audio> tag or <img> can use. Returns null when a device-local
+ * file is referenced from a device that does not have the bytes — the row
+ * synced, the media did not.
+ */
+export async function resolveMediaUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const blob = await getOfflineBlob(path);
+  if (blob) return URL.createObjectURL(blob);
+  return path.startsWith("local:") ? null : "/" + path;
+}
+
+/** True when the bytes for this path are on this device. */
+export async function hasOffline(path: string): Promise<boolean> {
+  return (await getOfflineBlob(path)) !== null;
 }

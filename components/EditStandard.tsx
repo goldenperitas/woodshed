@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Pencil } from "lucide-react";
-import type { Standard } from "@/lib/db/schema";
-import { updateStandardMeta } from "@/app/actions";
+import type { Standard } from "@/lib/sync/schema";
+import { updateStandardMeta } from "@/lib/local/mutations";
 
 export default function EditStandard({ std }: { std: Standard }) {
   const [open, setOpen] = useState(false);

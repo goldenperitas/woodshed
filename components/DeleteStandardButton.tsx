@@ -1,10 +1,12 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
-import { deleteStandard } from "@/app/actions";
+import { deleteStandard } from "@/lib/local/mutations";
 
-export default function DeleteStandardButton({ id, title }: { id: number; title: string }) {
+export default function DeleteStandardButton({ id, title }: { id: string; title: string }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
   return (
     <button
@@ -12,7 +14,11 @@ export default function DeleteStandardButton({ id, title }: { id: number; title:
       disabled={pending}
       onClick={() => {
         if (confirm(`「${title}」を削除しますか？音源も消えます。`)) {
-          start(() => deleteStandard(id));
+          // The old server action redirected; navigation is ours to do now.
+          start(async () => {
+            await deleteStandard(id);
+            router.push("/");
+          });
         }
       }}
     >

@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { notFound } from "next/navigation";
-import { getStandard } from "@/lib/db/queries";
 import { accentFor } from "@/lib/sleeve";
-import { saveChords, saveLyrics } from "@/app/actions";
+import { saveChords, saveLyrics } from "@/lib/local/mutations";
+import { getStandard } from "@/lib/local/queries";
+import { useLocalQuery, useStandardId } from "@/lib/local/store";
+import Booting from "@/components/Booting";
+import LocalError from "@/components/LocalError";
 import Woodshed from "@/components/Woodshed";
 import AudioUploader from "@/components/AudioUploader";
 import ArtworkUploader from "@/components/ArtworkUploader";
@@ -15,12 +19,26 @@ import EditStandard from "@/components/EditStandard";
 import StatusQuickSet from "@/components/StatusQuickSet";
 import DeleteStandardButton from "@/components/DeleteStandardButton";
 
-export const dynamic = "force-dynamic";
+export default function StandardPage() {
+  const id = useStandardId();
+  const { data, loading, error } = useLocalQuery(
+    async () => (id ? getStandard(id) : null),
+    [id],
+  );
 
-export default async function StandardPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const data = getStandard(Number(id));
-  if (!data) notFound();
+  if (error) return <LocalError error={error} />;
+  if (loading || !id) return <Booting label="めくっています" />;
+  if (!data) {
+    return (
+      <div className="wrap" style={{ paddingTop: 40 }}>
+        <p className="text-sm" style={{ color: "var(--muted)" }}>この曲は見つかりませんでした。</p>
+        <Link href="/" className="back" style={{ marginTop: 12, display: "inline-flex" }}>
+          <ArrowLeft size={15} strokeWidth={2} /> 棚に戻る
+        </Link>
+      </div>
+    );
+  }
+
   const { standard: std, recordings, regions, notes, allGroups, memberGroupIds, reviews, now } = data;
   const accent = accentFor(std.title);
 

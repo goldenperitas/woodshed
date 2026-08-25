@@ -1,5 +1,8 @@
+"use client";
+
 import { Disc, Star } from "lucide-react";
 import { accentFor } from "@/lib/sleeve";
+import { useMediaUrl } from "@/lib/local/media";
 
 type SleeveData = {
   title: string;
@@ -15,6 +18,7 @@ type SleeveData = {
 // otherwise a deterministic Blue Note typographic sleeve.
 export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number }) {
   const accent = accentFor(s.title);
+  const art = useMediaUrl(s.artworkPath);
   // Staggered top-to-bottom reveal; capped so big collections stay snappy.
   const delay = `${Math.min(index, 16) * 45}ms`;
 
@@ -38,11 +42,11 @@ export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number
     </div>
   );
 
-  if (s.artworkPath) {
+  if (art) {
     return (
       <div className="jacket art" style={{ ["--ja" as string]: accent, animationDelay: delay }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={"/" + s.artworkPath} alt={s.title} />
+        <img src={art} alt={s.title} />
         {status}
         <div className="pstrip">
           <span className="ptitle">{s.title}</span>

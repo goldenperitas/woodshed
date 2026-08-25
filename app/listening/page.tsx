@@ -1,9 +1,14 @@
-import { listAllTakes } from "@/lib/db/queries";
-import ListeningRoom from "@/components/ListeningRoom";
+"use client";
 
-export const dynamic = "force-dynamic";
+import ListeningRoom from "@/components/ListeningRoom";
+import Booting from "@/components/Booting";
+import LocalError from "@/components/LocalError";
+import { useLocalQuery } from "@/lib/local/store";
+import { listAllTakes } from "@/lib/local/queries";
 
 export default function ListeningPage() {
-  const takes = listAllTakes();
-  return <ListeningRoom takes={takes} />;
+  const { data, loading, error } = useLocalQuery(() => listAllTakes());
+  if (error) return <LocalError error={error} />;
+  if (loading || !data) return <Booting label="レコードを並べています" />;
+  return <ListeningRoom takes={data} />;
 }

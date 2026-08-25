@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Upload, X } from "lucide-react";
+import { saveFileOffline } from "@/lib/offline";
+import { addRecording, updateRecording } from "@/lib/local/mutations";
 
 // Decode an audio file's duration in the browser (metadata only) so the take
 // shows its length instead of "情報未設定".
@@ -21,8 +22,7 @@ function fileDuration(file: File): Promise<number | null> {
   });
 }
 
-export default function AudioUploader({ standardId }: { standardId: number }) {
-  const router = useRouter();
+export default function AudioUploader({ standardId }: { standardId: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [performer, setPerformer] = useState("");
@@ -37,29 +37,39 @@ export default function AudioUploader({ standardId }: { standardId: number }) {
     setFiles((prev) => [...prev, ...Array.from(list).filter((f) => f.type.startsWith("audio") || /\.(mp3|m4a|aac|wav|ogg|opus|flac)$/i.test(f.name))]);
   }
 
+  // Nothing leaves the device. The bytes go into this device's blob store and
+  // the row records the key — so the file is never uploaded anywhere, and the
+  // take is playable offline the moment it is added.
   async function upload() {
     if (files.length === 0) return;
     setBusy(true);
     try {
       for (let i = 0; i < files.length; i++) {
-        setProgress(`${i + 1}/${files.length} アップロード中…`);
-        const fd = new FormData();
-        fd.set("file", files[i]);
-        fd.set("standardId", String(standardId));
-        const dur = await fileDuration(files[i]);
-        if (dur) fd.set("durationSec", String(dur));
-        if (performer) fd.set("performer", performer);
-        if (year) fd.set("year", year);
-        if (instrumentation) fd.set("instrumentation", instrumentation);
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        if (!res.ok) throw new Error(await res.text());
+        setProgress(`${i + 1}/${files.length} 取り込み中…`);
+        const file = files[i];
+        const [key, durationSec] = await Promise.all([
+          saveFileOffline(file),
+          fileDuration(file),
+        ]);
+        const id = await addRecording({
+          standardId,
+          filePath: key,
+          originalName: file.name,
+          durationSec,
+        });
+        if (performer || year || instrumentation) {
+          const meta = new FormData();
+          meta.set("performer", performer);
+          meta.set("year", year);
+          meta.set("instrumentation", instrumentation);
+          await updateRecording(id, standardId, meta);
+        }
       }
       setFiles([]);
       setPerformer("");
       setYear("");
       setInstrumentation("");
       setProgress("");
-      router.refresh();
     } catch (e) {
       setProgress("失敗: " + (e as Error).message);
     } finally {
@@ -127,7 +137,7 @@ export default function AudioUploader({ standardId }: { standardId: number }) {
             ※ 演奏者などは全ファイル共通で付きます（後で個別編集可）
           </p>
           <button className="btn btn-accent" disabled={busy} onClick={upload}>
-            {busy ? progress || "アップロード中…" : `${files.length}件をアップロード`}
+            {busy ? progress || "取り込み中…" : `${files.length}件を取り込む`}
           </button>
         </div>
       )}

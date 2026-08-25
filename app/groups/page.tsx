@@ -1,12 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { listGroupsWithCounts } from "@/lib/db/queries";
 import GroupManager from "@/components/GroupManager";
-
-export const dynamic = "force-dynamic";
+import Booting from "@/components/Booting";
+import { useLocalQuery } from "@/lib/local/store";
+import { listGroupsWithCounts } from "@/lib/local/queries";
 
 export default function GroupsPage() {
-  const groups = listGroupsWithCounts();
+  const { data, loading } = useLocalQuery(() => listGroupsWithCounts());
   return (
     <div className="wrap pb-8">
       <div className="mb-4 flex items-center gap-3">
@@ -16,7 +18,7 @@ export default function GroupsPage() {
         <h1 className="text-xl font-bold">グループ</h1>
         <p className="text-xs" style={{ color: "var(--muted)" }}>似た曲をまとめて、ドリルの対象にできます</p>
       </header>
-      <GroupManager groups={groups} />
+      {loading || !data ? <Booting label="読み込み中" /> : <GroupManager groups={data} />}
     </div>
   );
 }

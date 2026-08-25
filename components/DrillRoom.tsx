@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Play, Pause, Dices } from "lucide-react";
-import type { DrillItem } from "@/lib/db/queries";
+import type { DrillItem } from "@/lib/local/queries";
 import { accentFor } from "@/lib/sleeve";
-import { logReview } from "@/app/actions";
+import { logReview } from "@/lib/local/mutations";
 import { usePlayer } from "@/components/player/PlayerProvider";
 
 type Mode = "name" | "audio" | "session";

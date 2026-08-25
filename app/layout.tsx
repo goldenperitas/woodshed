@@ -3,6 +3,7 @@ import "./globals.css";
 import RegisterSW from "@/components/RegisterSW";
 import PullToRefresh from "@/components/PullToRefresh";
 import PlayerProvider from "@/components/player/PlayerProvider";
+import SyncEngine from "@/components/SyncEngine";
 
 export const metadata: Metadata = {
   title: "Woodshed",
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <PullToRefresh />
           <div className="app-shell">{children}</div>
           <RegisterSW />
+          <SyncEngine />
         </PlayerProvider>
       </body>
     </html>

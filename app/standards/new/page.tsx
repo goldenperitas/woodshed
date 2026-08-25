@@ -1,9 +1,24 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { createStandard } from "@/app/actions";
+import { createStandard } from "@/lib/local/mutations";
 import StatusPicker from "@/components/StatusPicker";
 
 export default function NewStandardPage() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  // Writes to this device first, so adding a tune works with no signal at all.
+  async function submit(fd: FormData) {
+    setBusy(true);
+    const id = await createStandard(fd);
+    if (id) router.push(`/standards/${id}`);
+    else setBusy(false);
+  }
+
   return (
     <div className="wrap pb-8">
       <div className="mb-4 flex items-center gap-3">
@@ -13,7 +28,7 @@ export default function NewStandardPage() {
         <h1 className="text-lg font-bold">曲を追加</h1>
       </div>
 
-      <form action={createStandard} className="card flex flex-col gap-3 p-4">
+      <form action={submit} className="card flex flex-col gap-3 p-4">
         <div>
           <label className="label">曲名 *</label>
           <input name="title" className="input" required autoFocus placeholder="Autumn Leaves" />
@@ -51,8 +66,8 @@ export default function NewStandardPage() {
           ジャムでよく呼ばれる（優先）
         </label>
 
-        <button type="submit" className="btn btn-accent mt-1">
-          追加する
+        <button type="submit" className="btn btn-accent mt-1" disabled={busy}>
+          {busy ? "追加中…" : "追加する"}
         </button>
       </form>
     </div>

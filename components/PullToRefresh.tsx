@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { sync } from "@/lib/local/sync";
+import { notifyChanged } from "@/lib/local/bus";
 
 // Custom pull-to-refresh for the installed PWA (standalone display), where
 // Safari's native pull-to-refresh is unavailable. Pulling down from the very
 // top drags the app shell, reveals a spinner, and on release past the
-// threshold reloads the page (fresh data + code, offline-safe via the SW).
+// threshold syncs with the Mac. It no longer reloads: the screen is already
+// built from local data, so a reload would only re-download code. What the
+// gesture is actually for is "go and see if anything changed elsewhere".
 export default function PullToRefresh() {
   const barRef = useRef<HTMLDivElement>(null);
   const spinRef = useRef<HTMLDivElement>(null);
@@ -82,15 +86,22 @@ export default function PullToRefresh() {
       active = false;
       if (dist >= THRESHOLD && !refreshing) {
         refreshing = true;
-        // spring the shell back, keep the spinner running as an overlay,
-        // then do a full reload (fresh data + code, offline-safe via the SW).
+        // Spring the shell back and keep the spinner running as an overlay
+        // until the sync round trip finishes (or fails — offline is normal).
         shell.style.transition = "transform .3s cubic-bezier(.3,.7,.3,1)";
         shell.style.transform = "";
         bar.style.opacity = "1";
         bar.style.transform = "translateX(-50%)";
         spin.style.transform = "";
         bar.classList.add("spinning");
-        window.setTimeout(() => window.location.reload(), 320);
+        const settle = () => {
+          notifyChanged();
+          bar.classList.remove("spinning");
+          refreshing = false;
+          reset(true);
+        };
+        // Floor the spinner at ~600ms so a fast sync still reads as an action.
+        Promise.all([sync(), new Promise((r) => window.setTimeout(r, 600))]).then(settle, settle);
       } else {
         reset(true);
       }

@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Play, Pause, Shuffle, ChevronDown } from "lucide-react";
-import type { ListeningTake } from "@/lib/db/queries";
+import type { ListeningTake } from "@/lib/local/queries";
 import { STATUS } from "@/lib/constants";
 import { accentFor } from "@/lib/sleeve";
 import { fmtTime } from "@/lib/format";
-import { getOfflineBlob } from "@/lib/offline";
+import { resolveMediaUrl } from "@/lib/offline";
+import { useMediaUrl } from "@/lib/local/media";
 import { usePlayer } from "@/components/player/PlayerProvider";
 
 function shuffle<T>(arr: T[]): T[] {
@@ -19,9 +20,8 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-async function resolveSrc(filePath: string): Promise<string> {
-  const blob = await getOfflineBlob(filePath);
-  return blob ? URL.createObjectURL(blob) : "/" + filePath;
+async function resolveSrc(filePath: string): Promise<string | null> {
+  return resolveMediaUrl(filePath);
 }
 
 const takeName = (t: ListeningTake) =>
@@ -32,7 +32,8 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
 
   const [statusFilter, setStatusFilter] = useState<number | null>(null);
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const allGroups = useMemo(
     () => [...new Set(takes.flatMap((t) => t.groupNames))].sort(),
@@ -55,9 +56,17 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
   const idle = activeIdx < 0;
   const display: ListeningTake | undefined = idle ? queue[0] : queue[activeIdx];
   const accent = display ? accentFor(display.title) : "#E1541B";
+  const displayArt = useMediaUrl(display?.artworkPath);
 
-  const playItem = useCallback(async (item: ListeningTake, pre?: string) => {
+  const playItem = useCallback(async (item: ListeningTake, pre?: string | null) => {
+    // A take's row syncs to every device; its bytes do not. Say so rather
+    // than handing the player a src it cannot load.
     const src = pre ?? (await resolveSrc(item.filePath));
+    if (!src) {
+      setNotice(`「${item.title}」の音源はこの端末にありません`);
+      return;
+    }
+    setNotice(null);
     player.load(
       {
         id: item.filePath, src,
@@ -65,11 +74,12 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
         subtitle: takeName(item),
         accent: accentFor(item.title),
         artworkPath: item.artworkPath,
+        artworkUrl: item.artworkPath === display?.artworkPath ? displayArt : null,
         href: `/standards/${item.standardId}`,
       },
       { autoplay: true },
     );
-  }, [player]);
+  }, [player, display?.artworkPath, displayArt]);
 
   // Pre-resolve the top track's src while idle so the big play button is
   // gesture-safe (iOS needs play() inside the tap for the first playback).
@@ -125,9 +135,9 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
               <div className="turntable">
                 <div className={`disc ${playing ? "spinning" : ""}`} style={{ ["--spin" as string]: "1.8s" }}>
                   <div className="disc-label">
-                    {display?.artworkPath
+                    {displayArt
                       // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={"/" + display.artworkPath} alt="" />
+                      ? <img src={displayArt} alt="" />
                       : <span className="lt">{display?.title.split(" ").slice(0, 2).join(" ")}</span>}
                   </div>
                 </div>
@@ -180,6 +190,9 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
               <span className="l">再生キュー</span>
               <span className="v">{queue.length} takes</span>
             </div>
+            {notice && (
+              <p className="text-xs" style={{ color: "var(--muted)", padding: "0 6px 6px" }}>{notice}</p>
+            )}
             {queue.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--muted)", padding: "8px 6px" }}>この条件のテイクはありません。</p>
             ) : (

@@ -3,14 +3,14 @@
 import { useState, useTransition } from "react";
 import { Star } from "lucide-react";
 import { STATUS } from "@/lib/constants";
-import { setStatus, toggleCalledOften } from "@/app/actions";
+import { setStatus, toggleCalledOften } from "@/lib/local/mutations";
 
 export default function StatusQuickSet({
   id,
   status,
   calledOften,
 }: {
-  id: number;
+  id: string;
   status: number;
   calledOften: boolean;
 }) {

@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Target } from "lucide-react";
-import { createGroup, deleteGroup } from "@/app/actions";
+import { createGroup, deleteGroup } from "@/lib/local/mutations";
 
-type G = { id: number; name: string; description: string | null; count: number };
+type G = { id: string; name: string; description: string | null; count: number };
 
 export default function GroupManager({ groups }: { groups: G[] }) {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -21,7 +19,7 @@ export default function GroupManager({ groups }: { groups: G[] }) {
     await createGroup(fd);
     setName("");
     setDescription("");
-    router.refresh();
+   
   }
 
   return (
@@ -60,7 +58,7 @@ export default function GroupManager({ groups }: { groups: G[] }) {
                   onClick={async () => {
                     if (confirm(`グループ「${g.name}」を削除しますか？（曲は消えません）`)) {
                       await deleteGroup(g.id);
-                      router.refresh();
+                     
                     }
                   }}
                 >

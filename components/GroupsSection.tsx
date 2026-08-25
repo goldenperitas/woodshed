@@ -3,22 +3,22 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Check, Plus, Settings } from "lucide-react";
-import type { Group } from "@/lib/db/schema";
-import { setStandardGroup } from "@/app/actions";
+import type { Group } from "@/lib/sync/schema";
+import { setStandardGroup } from "@/lib/local/mutations";
 
 export default function GroupsSection({
   standardId,
   allGroups,
   memberIds,
 }: {
-  standardId: number;
+  standardId: string;
   allGroups: Group[];
-  memberIds: number[];
+  memberIds: string[];
 }) {
-  const [members, setMembers] = useState<Set<number>>(new Set(memberIds));
+  const [members, setMembers] = useState<Set<string>>(new Set(memberIds));
   const [, start] = useTransition();
 
-  function toggle(gid: number) {
+  function toggle(gid: string) {
     const next = new Set(members);
     const isMember = next.has(gid);
     if (isMember) next.delete(gid);

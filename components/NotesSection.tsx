@@ -1,21 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Clock } from "lucide-react";
-import type { Note } from "@/lib/db/schema";
+import type { Note } from "@/lib/sync/schema";
 import { NOTE_TAGS, NOTE_TAG_LABEL } from "@/lib/constants";
 import { fmtTime } from "@/lib/format";
-import { addNote, deleteNote } from "@/app/actions";
+import { addNote, deleteNote } from "@/lib/local/mutations";
 
 export default function NotesSection({
   standardId,
   notes,
 }: {
-  standardId: number;
+  standardId: string;
   notes: Note[];
 }) {
-  const router = useRouter();
   const [body, setBody] = useState("");
   const [tag, setTag] = useState("general");
   const [busy, setBusy] = useState(false);
@@ -27,7 +25,7 @@ export default function NotesSection({
     setBody("");
     setTag("general");
     setBusy(false);
-    router.refresh();
+   
   }
 
   return (
@@ -71,7 +69,7 @@ export default function NotesSection({
                   onClick={async () => {
                     if (confirm("このメモを削除しますか？")) {
                       await deleteNote(n.id, standardId);
-                      router.refresh();
+                     
                     }
                   }}
                 >

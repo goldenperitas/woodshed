@@ -12,6 +12,8 @@ export type PlayerTrack = {
   subtitle?: string;
   accent?: string;
   artworkPath?: string | null;
+  /** Pre-resolved blob URL when the jacket lives on this device. */
+  artworkUrl?: string | null;
   href?: string; // where the mini-bar links back to
 };
 
@@ -134,7 +136,12 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     if (!track) { navigator.mediaSession.metadata = null; return; }
-    const img = track.artworkPath ? "/" + track.artworkPath : "/icon-512.png";
+    // Device-local jackets are blob URLs; mediaSession accepts them, but only
+    // the non-local path can be guessed synchronously, so fall back to the icon.
+    const img =
+      track.artworkPath && !track.artworkPath.startsWith("local:")
+        ? "/" + track.artworkPath
+        : track.artworkUrl ?? "/icon-512.png";
     const type = /\.png$/i.test(img) ? "image/png" : /\.jpe?g$/i.test(img) ? "image/jpeg" : "";
     try {
       navigator.mediaSession.metadata = new MediaMetadata({

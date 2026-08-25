@@ -1,4 +1,4 @@
-import type { ReviewLogRow } from "@/lib/db/schema";
+import type { ReviewLogRow } from "@/lib/sync/schema";
 
 // Read-only view of the self-assessment history for one standard. Server
 // component — the drill writes these rows; here we just read them back.

@@ -1,18 +1,30 @@
-// Service worker: app-shell + font caching so the PWA opens and looks right
-// offline (car / 出先). Audio is NOT cached here — downloaded tracks live in
-// IndexedDB and play via object URLs (see lib/offline.ts), which sidesteps
-// Safari's Range quirks.
+// Service worker: caches everything needed to boot with no network — the app
+// shell, fonts, and the SQLite wasm the local database runs on. Screens are
+// rendered from that local database, so once this is cached the app is fully
+// usable offline, not just readable.
+//
+// Media is NOT cached here — audio and artwork live in IndexedDB and play via
+// object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v3";
+const CACHE = "woodshed-v4";
 
 // Precached on install so the first offline visit has a shell + fonts + icons.
 // Hashed /_next/static chunks can't be listed here (names change per build);
 // they get cached at runtime on the first online visit instead.
+// "/standards/_shell" is a stand-in: every tune page renders the same shell
+// and reads its id from the address bar, so one cached copy serves them all.
+const STANDARD_SHELL = "/standards/_shell";
+
 const PRECACHE = [
   "/",
   "/drill",
   "/groups",
+  "/listening",
   "/standards/new",
+  STANDARD_SHELL,
+  "/db-worker.js",
+  "/sqlite/sqlite3.mjs",
+  "/sqlite/sqlite3.wasm",
   "/manifest.json",
   "/icon-192.png",
   "/icon-512.png",
@@ -52,8 +64,20 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  // Never intercept API calls or audio files.
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/audio/")) return;
+  // Never intercept API calls or media served from the Mac.
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/audio/") ||
+    url.pathname.startsWith("/art/")
+  )
+    return;
+
+  // The database engine: cache-first and never revalidated. It is large,
+  // immutable, and nothing renders until it has loaded.
+  if (url.pathname.startsWith("/sqlite/") || url.pathname === "/db-worker.js") {
+    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => put(req, res))));
+    return;
+  }
 
   // Self-hosted fonts: cache-first (immutable, and critical to render offline).
   if (url.pathname.startsWith("/fonts/")) {
@@ -68,11 +92,21 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Pages: network-first, fall back to the cached page (then "/") when offline.
+  // Pages: network-first, and offline fall back through progressively more
+  // generic shells. A tune page for a tune this device has never loaded still
+  // opens, because the shell is identical for every id.
   e.respondWith(
     fetch(req)
       .then((res) => put(req, res))
-      .catch(() => caches.match(req).then((hit) => hit || caches.match("/"))),
+      .catch(async () => {
+        const exact = await caches.match(req);
+        if (exact) return exact;
+        if (url.pathname.startsWith("/standards/")) {
+          const shell = await caches.match(STANDARD_SHELL);
+          if (shell) return shell;
+        }
+        return caches.match("/");
+      }),
   );
 });
 
