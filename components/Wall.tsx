@@ -134,6 +134,13 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
           ))}
         </div>
       )}
+
+      {/* Installed as a PWA there is no address bar, so the one screen that
+          explains why the app is misbehaving would otherwise be unreachable
+          from the device it is misbehaving on. */}
+      <footer className="wall-foot">
+        <Link href="/debug" className="mono">診断</Link>
+      </footer>
     </div>
   );
 }

@@ -210,6 +210,11 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 
 .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 28px; text-align: center; color: var(--muted); font-size: 14px; margin-top: 20px; }
 
+/* Deliberately faint: needed when something is wrong, invisible otherwise. */
+.wall-foot { margin-top: 34px; padding-bottom: 8px; text-align: center; }
+.wall-foot a { font-size: 10px; letter-spacing: .18em; color: var(--muted); opacity: .38; text-decoration: none; padding: 8px 14px; }
+.wall-foot a:active { opacity: .8; }
+
 /* =========================================================
    WOODSHED (tune / focused player)
    ========================================================= */

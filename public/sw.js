@@ -6,7 +6,7 @@
 // Media is NOT cached here — audio and artwork live in IndexedDB and play via
 // object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v7";
+const CACHE = "woodshed-v8";
 // Jackets fetched from the Mac live in their own cache. The versioned cache is
 // emptied on every update — code and shells should be replaced wholesale — but
 // re-downloading artwork requires being online again, which is exactly what
@@ -120,7 +120,11 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok && res.type === "basic") {
+        // Only a real HTML document may become the shell. Next prefetches tune
+        // links as route payloads, which share the URL but return flight data —
+        // storing one of those as the shell means a later offline navigation
+        // renders the payload as text instead of the page.
+        if (isDocumentResponse(req, res)) {
           const shell = res.clone();
           caches.open(CACHE).then((c) => c.put(documentKey(url), shell));
         }
@@ -140,6 +144,15 @@ self.addEventListener("fetch", (e) => {
 // a fixed path and can key on itself.
 function isTunePage(url) {
   return url.pathname.startsWith("/standards/") && url.pathname !== "/standards/new";
+}
+
+function isDocumentResponse(req, res) {
+  return (
+    req.mode === "navigate" &&
+    res.ok &&
+    res.type === "basic" &&
+    (res.headers.get("content-type") || "").includes("text/html")
+  );
 }
 
 function documentKey(url) {

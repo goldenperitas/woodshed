@@ -1,0 +1,144 @@
+#!/usr/bin/env node
+// Offline end-to-end test.
+//
+// WHY THIS EXISTS: the browser available to the coding agent refuses to
+// register service workers at all (even a one-line empty worker fails with
+// "An unknown error occurred when fetching the script"), so nothing about
+// offline behaviour can be checked there. This drives the Chrome already
+// installed on the Mac, which registers workers normally.
+//
+//   npm run build && npx next start -p 3100
+//   node scripts/offline-test.js
+//
+// Reproduces the sequence that fails on the iPhone:
+//   warm online -> go offline -> tune A -> wall -> tune B -> wall -> tune A
+//
+// Assertions are deliberately strict about what counts as a working page. An
+// earlier, looser version reported PASS while the page was actually rendering
+// the router's flight payload as plain text.
+
+const path = require("node:path");
+const { chromium } = require("playwright-core");
+
+const BASE = process.env.BASE || "http://localhost:3100";
+const CHROME =
+  process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+
+const log = (...a) => console.log(...a);
+let failures = 0;
+const check = (name, ok, detail = "") => {
+  log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`);
+  if (!ok) failures++;
+};
+
+(async () => {
+  const browser = await chromium.launch({ headless: true, executablePath: CHROME });
+  const ctx = await browser.newContext({ serviceWorkers: "allow" });
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => log("   [pageerror]", e.message.slice(0, 160)));
+
+  const bodyText = () => page.evaluate(() => document.body.innerText);
+  const pathOf = () => new URL(page.url()).pathname;
+  const wallCount = async () => (await bodyText()).match(/(\d+)\s*曲/)?.[1] ?? null;
+
+  const tuneState = async () => {
+    const t = await bodyText();
+    if (/この曲は見つかりませんでした/.test(t)) return "NOT_FOUND:" + (t.match(/id:\s*(\S+)/)?.[1] ?? "");
+    if (/棚を開けられませんでした/.test(t)) return "DB_ERROR";
+    // A page showing flight data as text is broken even though it contains no
+    // error message anywhere.
+    if (/^\d+:[A-Z]\[/m.test(t) || /"ViewportBoundary"/.test(t)) return "RAW_PAYLOAD";
+    // Sections every tune page renders. Not TAKES — a tune with no recordings
+    // shows a placeholder instead of that heading.
+    if (!/棚に戻る/.test(t) || !/コード解釈/.test(t) || !/ステータス/.test(t)) return "NOT_A_TUNE_PAGE";
+    return t.split("\n").map((l) => l.trim()).filter(Boolean)[1] ?? "?";
+  };
+  const isTune = (v) =>
+    !["DB_ERROR", "RAW_PAYLOAD", "NOT_A_TUNE_PAGE", "?"].includes(v) && !v.startsWith("NOT_FOUND");
+
+  // ---- online: register the worker and warm the caches ----
+  await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await page.waitForTimeout(3000);
+
+  const sw = await page.evaluate(async () => {
+    const r = await navigator.serviceWorker.getRegistration();
+    return { has: !!r, state: r?.active?.state ?? null };
+  });
+  check("service worker registered", sw.has, JSON.stringify(sw));
+  if (!sw.has) {
+    await browser.close();
+    process.exit(1);
+  }
+
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(2500);
+  check("controlled by the worker", await page.evaluate(() => !!navigator.serviceWorker.controller));
+  check("wall renders online", (await wallCount()) === "81", "count=" + (await wallCount()));
+
+  const hrefs = await page.evaluate(() =>
+    [...document.querySelectorAll('a[href^="/standards/"]')]
+      .map((a) => a.getAttribute("href"))
+      .filter((h) => h !== "/standards/new"),
+  );
+  const TUNE_A = hrefs[0];
+  const TUNE_B = hrefs[10];
+  log(`   TUNE_A=${TUNE_A}\n   TUNE_B=${TUNE_B}`);
+
+  // Warm every screen, opening only TUNE_A, so TUNE_B is genuinely a page this
+  // device has never fetched.
+  for (const p of ["/drill", "/listening", "/groups", "/debug", TUNE_A, "/"]) {
+    await page.goto(BASE + p, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1200);
+  }
+
+  const cached = await page.evaluate(async (assets) => {
+    const out = {};
+    for (const a of assets) out[a] = !!(await caches.match(a));
+    return out;
+  }, ["/sqlite/sqlite3.wasm", "/db-worker.js", "/standards/_shell", "/", "/debug"]);
+  for (const [asset, ok] of Object.entries(cached)) check("cached " + asset, ok);
+
+  // ---- offline ----
+  await ctx.setOffline(true);
+  log("\n--- offline ---");
+
+  await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }).catch(() => {});
+  await page.waitForTimeout(3500);
+  check("wall opens offline", (await wallCount()) === "81", "count=" + (await wallCount()));
+
+  const openTune = async (href) => {
+    const link = page.locator(`a[href="${href}"]`).first();
+    const found = await link.count();
+    const before = pathOf();
+    if (found) await link.click().catch((e) => log("   [click error] " + e.message.slice(0, 80)));
+    else await page.goto(BASE + href, { waitUntil: "domcontentloaded" }).catch(() => {});
+    await page.waitForTimeout(3000);
+    log(`   [nav] want=${href} links=${found} ${before} -> ${pathOf()}`);
+    return pathOf();
+  };
+
+  const landedA = await openTune(TUNE_A);
+  const a1 = await tuneState();
+  check("tune A opens offline", isTune(a1) && landedA === TUNE_A, `${a1} @ ${landedA}`);
+
+  await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
+  await page.waitForTimeout(2500);
+  check("back to the wall", (await wallCount()) === "81", "count=" + (await wallCount()));
+
+  const landedB = await openTune(TUNE_B);
+  const b = await tuneState();
+  // The URL check matters: a passing title with the wrong URL means the click
+  // went somewhere else entirely.
+  check("tune B (never opened online) opens offline", isTune(b) && landedB === TUNE_B, `${b} @ ${landedB}`);
+  check("tune B is a different tune from A", b !== a1, `${a1} vs ${b}`);
+
+  await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
+  await page.waitForTimeout(2500);
+  const landedA2 = await openTune(TUNE_A);
+  const a2 = await tuneState();
+  check("tune A still works after B", isTune(a2) && a2 === a1 && landedA2 === TUNE_A, `${a1} -> ${a2} @ ${landedA2}`);
+
+  await browser.close();
+  log(failures ? `\n${failures} FAILURE(S)` : "\nall offline checks passed");
+  process.exit(failures ? 1 : 0);
+})();
