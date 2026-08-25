@@ -19,6 +19,8 @@
 //               library used to come up empty
 //   開き直し    the document closed and reopened straight onto a tune the
 //               device has never fetched, which is §7's device procedure
+//   退避        the device database gone, the way iOS takes it back from a
+//               site it has not seen for a while
 //
 // Each scenario ends by printing a meter read off the device's own event log.
 // 文書ロード and DB開き直し are the pair to watch: while an offline screen
@@ -333,12 +335,62 @@ async function relaunch(ctx) {
   await meter(fresh, "開き直し");
 }
 
+async function eviction(ctx) {
+  const { page, probe: p } = await warmUp(ctx);
+
+  // iOS reclaims script storage from sites it has not seen in a while. The
+  // database goes; the Mac still has everything. Wiping is done from a
+  // same-origin page that never starts the worker — while the app is running,
+  // the OPFS access handles are held and the directory refuses to be removed.
+  const wipeDatabase = async () => {
+    await page.goto(BASE + "/manifest.json", { waitUntil: "domcontentloaded" }).catch(() => {});
+    await page.waitForTimeout(1500);
+    await page.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      for await (const [name] of root.entries()) {
+        if (name.includes("woodshed")) await root.removeEntry(name, { recursive: true });
+      }
+    });
+  };
+
+  const floor = await page.evaluate(() => localStorage.getItem("woodshed.rowFloor"));
+  check("the device remembers it had rows", Number(floor) > 0, "rowFloor=" + floor);
+
+  log("   --- database evicted, still online ---");
+  await startMeter(page);
+  await wipeDatabase();
+  await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(9000);
+  const text = await p.bodyText();
+  check("rebuilds itself from the Mac", (await p.wallCount()) === "81", "count=" + (await p.wallCount()));
+  check("and says so", /取り直しました/.test(text), text.split("\n").map((l) => l.trim()).filter(Boolean)[0] ?? "");
+
+  log("   --- database evicted, and no Mac in reach ---");
+  await wipeDatabase();
+  await ctx.setOffline(true);
+  await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }).catch(() => {});
+  await page.waitForTimeout(9000);
+  const offlineText = await p.bodyText();
+  // The one thing that must never happen: an empty shelf rendered as if the
+  // library really were empty.
+  check("never renders the loss as an empty shelf", (await p.wallCount()) !== "0", "count=" + (await p.wallCount()));
+  check(
+    "says it cannot recover without the Mac",
+    /取り直せません/.test(offlineText),
+    offlineText.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 2).join(" | "),
+  );
+  check("no longer claims it recovered", !/取り直しました/.test(offlineText));
+
+  await meter(page, "退避");
+}
+
 // --------------------------------------------------------------------- main
 
 const SCENARIOS = [
   ["一巡", journey],
   ["二重", twoDocuments],
   ["開き直し", relaunch],
+  ["退避", eviction],
 ];
 
 (async () => {

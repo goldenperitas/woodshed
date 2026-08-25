@@ -7,7 +7,7 @@
 // Push and pull happen in one request. The device sends every row flagged
 // dirty; the server replies with everything past the device's cursor.
 
-import { rawAll, runScript, getMeta, setMeta } from "./db";
+import { rawAll, runScript, getMeta, setMeta, recordRowFloor } from "./db";
 import { notifyChanged } from "./bus";
 import { logEvent } from "./log";
 import { SYNC_TABLES, syncColumns } from "@/lib/sync/protocol";
@@ -83,6 +83,9 @@ async function runSync(): Promise<SyncResult> {
     const pulled = await applyPull(payload.changes);
     await clearDirty(stamps);
     await setMeta(CURSOR_KEY, String(payload.cursor));
+    // Now that rows are definitely here, note it — this is what makes a later
+    // empty open recognisable as lost storage instead of a first run.
+    if (pulled) await recordRowFloor();
 
     if (pulled > 0) notifyChanged();
     return { ok: true, pushed, pulled };

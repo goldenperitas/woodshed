@@ -5,6 +5,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import PlayerProvider from "@/components/player/PlayerProvider";
 import SyncEngine from "@/components/SyncEngine";
 import EventRecorder from "@/components/EventRecorder";
+import RecoveryNotice from "@/components/RecoveryNotice";
 
 export const metadata: Metadata = {
   title: "Woodshed",
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               reads it. */}
           <EventRecorder />
           <PullToRefresh />
+          <RecoveryNotice />
           <div className="app-shell">{children}</div>
           <RegisterSW />
           <SyncEngine />

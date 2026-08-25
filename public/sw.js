@@ -6,7 +6,7 @@
 // Media is NOT cached here — audio and artwork live in IndexedDB and play via
 // object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v13";
+const CACHE = "woodshed-v14";
 // Jackets fetched from the Mac live in their own cache. The versioned cache is
 // emptied on every update — code and shells should be replaced wholesale — but
 // re-downloading artwork requires being online again, which is exactly what

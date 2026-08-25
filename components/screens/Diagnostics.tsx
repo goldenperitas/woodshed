@@ -13,7 +13,7 @@ import { ArrowLeft } from "lucide-react";
 import { rawAll, ready, getMeta, resetLocalDatabase } from "@/lib/local/db";
 import { sync, lastSync, pendingCount } from "@/lib/local/sync";
 import { SYNC_TABLES } from "@/lib/sync/schema";
-import { listOfflineKeys, storageEstimate } from "@/lib/offline";
+import { listOfflineKeys, storageEstimate, missingOffline, fetchOfflineCopies } from "@/lib/offline";
 import { readLog, clearLog, formatLog, summarize, RUN_ID } from "@/lib/local/log";
 import type { LogEntry } from "@/lib/local/log";
 
@@ -25,11 +25,13 @@ const KEY_ASSETS = ["/sqlite/sqlite3.wasm", "/db-worker.js", "/", "/fonts/anton.
 
 export default function Diagnostics() {
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [missing, setMissing] = useState<string[]>([]);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState("");
 
-  const collect = useCallback(async (): Promise<Row[]> => {
+  const collect = useCallback(async (): Promise<{ rows: Row[]; missing: string[] }> => {
     const out: Row[] = [];
+    let gone: string[] = [];
     const push = (label: string, value: unknown, bad = false) =>
       out.push({ label, value: String(value), bad });
 
@@ -92,6 +94,14 @@ export default function Diagnostics() {
       const { usage, quota } = await storageEstimate();
       push("端末内の音源/画像", `${keys.length} 件`);
       push("ストレージ使用量", `${(usage / 1e6).toFixed(1)} MB / ${(quota / 1e6).toFixed(0)} MB`);
+
+      // What would not play in the car. After a rebuild from the Mac this is
+      // every take there is, which is the moment it most needs saying.
+      const paths = (await rawAll(
+        "SELECT file_path FROM recordings WHERE deleted_at IS NULL",
+      )).map((r) => String(r[0] ?? ""));
+      gone = await missingOffline(paths);
+      push("端末に無い音源", `${gone.length} 件 / 全${paths.length} 件`, gone.length > 0);
     } catch (e) {
       push("メディア", (e as Error).message, true);
     }
@@ -105,11 +115,14 @@ export default function Diagnostics() {
       last ? !last.ok : false,
     );
 
-    return out;
+    return { rows: out, missing: gone };
   }, []);
 
   const refresh = useCallback(() => {
-    collect().then(setRows);
+    collect().then(({ rows: r, missing: m }) => {
+      setRows(r);
+      setMissing(m);
+    });
     setLog(readLog());
   }, [collect]);
 
@@ -118,9 +131,10 @@ export default function Diagnostics() {
     // Read after collect() resolves rather than in the effect body: this runs
     // in the same commit as the recorder that writes the boot event, and
     // reading first would miss it.
-    collect().then((r) => {
+    collect().then(({ rows: r, missing: m }) => {
       if (cancelled) return;
       setRows(r);
+      setMissing(m);
       setLog(readLog());
     });
     return () => {
@@ -167,6 +181,29 @@ export default function Diagnostics() {
         >
           DBを作り直す
         </button>
+        {missing.length > 0 && (
+          <button
+            className="btn btn-accent"
+            disabled={!!busy}
+            onClick={async () => {
+              setBusy("media");
+              const r = await fetchOfflineCopies(missing, (done, total) =>
+                setBusy(`media:${done}/${total}`),
+              );
+              setBusy("");
+              alert(
+                r.failed
+                  ? `${r.saved}件を保存しました。${r.failed}件は取得できませんでした（Macに繋がっていますか）。`
+                  : `${r.saved}件を端末に保存しました。`,
+              );
+              refresh();
+            }}
+          >
+            {busy.startsWith("media")
+              ? busy.replace("media", "保存中 ").replace(":", "")
+              : `音源を端末に入れ直す (${missing.length})`}
+          </button>
+        )}
       </div>
 
       {!rows ? (

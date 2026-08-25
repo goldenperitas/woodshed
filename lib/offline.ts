@@ -134,3 +134,37 @@ export async function resolveMediaUrl(path: string | null): Promise<string | nul
 export async function hasOffline(path: string): Promise<boolean> {
   return (await getOfflineBlob(path)) !== null;
 }
+
+/**
+ * The server-held media this device does not have a copy of.
+ *
+ * Rebuilding from the Mac brings back every row but none of the bytes, so
+ * after a recovery this is the whole shelf. It is also the honest answer to
+ * "what will not play in the car".
+ */
+export async function missingOffline(paths: string[]): Promise<string[]> {
+  const here = new Set(await listOfflineKeys());
+  return [...new Set(paths)].filter((p) => p && !p.startsWith("local:") && !here.has(p));
+}
+
+/**
+ * Fetches copies of the given paths, reporting progress. Keeps going past a
+ * failure: one unreachable take should not stop the other forty.
+ */
+export async function fetchOfflineCopies(
+  paths: string[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ saved: number; failed: number }> {
+  let saved = 0;
+  let failed = 0;
+  for (const [i, path] of paths.entries()) {
+    try {
+      await saveOffline(path, mediaUrl(path));
+      saved++;
+    } catch {
+      failed++;
+    }
+    onProgress?.(i + 1, paths.length);
+  }
+  return { saved, failed };
+}

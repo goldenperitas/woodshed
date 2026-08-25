@@ -109,8 +109,37 @@ export async function ready(): Promise<{ version: string }> {
 // from a library with nothing in it — the worst possible way to report a
 // storage failure. Tombstones make the real row count monotonic (deletes leave
 // rows behind), so "we had rows before and now have none" can only mean the
-// wrong file was opened.
+// device lost its storage, or the wrong file was opened.
+//
+// iOS reclaims script storage from sites it has not seen in a while. When that
+// happens the Mac still has everything, so the honest response is to go and
+// get it rather than to stop with an error — and then to say what happened,
+// because the audio copies went with it and only the owner can put those back.
 const ROW_MARKER = "woodshed.rowFloor";
+const RECOVERED_MARKER = "woodshed.recovered";
+
+/**
+ * Remembers that this device does have rows, so that opening to an empty
+ * database later is recognisable as a loss rather than a first run.
+ *
+ * Called after a sync rather than only at boot: a device's very first open is
+ * legitimately empty, and the rows arrive seconds later.
+ */
+export async function recordRowFloor(): Promise<void> {
+  if (typeof localStorage === "undefined") return;
+  const total = await totalRows();
+  if (total > 0) localStorage.setItem(ROW_MARKER, String(total));
+}
+
+/** Set when this device rebuilt itself from the Mac; read by RecoveryNotice. */
+export function recoveredAt(): number | null {
+  const v = Number(localStorage.getItem(RECOVERED_MARKER) ?? 0);
+  return v > 0 ? v : null;
+}
+
+export function clearRecovered(): void {
+  localStorage.removeItem(RECOVERED_MARKER);
+}
 
 // Counted once per document, not once per query. ready() runs ahead of every
 // read, and the check walks all seven tables — cheap on its own, wasteful
@@ -132,12 +161,30 @@ async function assertNotSilentlyEmpty(): Promise<void> {
     return;
   }
   const floor = Number(localStorage.getItem(ROW_MARKER) ?? 0);
-  if (floor > 0) {
-    logEvent("db.empty", { floor });
+  if (floor === 0) return; // genuinely a first run
+
+  logEvent("db.empty", { floor });
+
+  // Imported here rather than at the top: sync.ts reads from this module, and
+  // a cycle between them at load time is not worth the tidier import list.
+  const { sync } = await import("./sync");
+  const result = await sync();
+  const after = await totalRows();
+  logEvent("db.recover", { ok: result.ok, pulled: result.pulled, rows: after });
+
+  if (after === 0) {
+    // Do not leave a "rebuilt from the Mac" banner standing over a failure.
+    localStorage.removeItem(RECOVERED_MARKER);
     throw new Error(
-      "この端末のデータを読み込めませんでした（空のデータベースが開かれています）",
+      result.ok
+        ? "この端末のデータを読み込めませんでした（空のデータベースが開かれています）"
+        : "この端末のデータが消えており、Macにも繋がらないため取り直せません。" +
+          "Macと同じネットワークに入ってから開き直してください。",
     );
   }
+
+  localStorage.setItem(ROW_MARKER, String(after));
+  localStorage.setItem(RECOVERED_MARKER, String(Date.now()));
 }
 
 async function totalRows(): Promise<number> {
