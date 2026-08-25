@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import ViewLink from "@/components/ViewLink";
 import { useState } from "react";
 import { Target } from "lucide-react";
 import { createGroup, deleteGroup } from "@/lib/local/mutations";
@@ -45,13 +45,13 @@ export default function GroupManager({ groups }: { groups: G[] }) {
               </div>
               <div className="flex items-center gap-2">
                 {g.count > 0 && (
-                  <Link
+                  <ViewLink
                     href={`/drill?group=${encodeURIComponent(g.name)}`}
                     className="btn btn-ghost text-xs"
                     title="この群をドリル"
                   >
                     <Target size={14} strokeWidth={2} /> ドリル
-                  </Link>
+                  </ViewLink>
                 )}
                 <button
                   className="btn btn-ghost btn-danger text-xs"

@@ -1,12 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { deleteStandard } from "@/lib/local/mutations";
+import { navigate } from "@/lib/nav";
 
 export default function DeleteStandardButton({ id, title }: { id: string; title: string }) {
-  const router = useRouter();
   const [pending, start] = useTransition();
   return (
     <button
@@ -17,7 +16,7 @@ export default function DeleteStandardButton({ id, title }: { id: string; title:
           // The old server action redirected; navigation is ours to do now.
           start(async () => {
             await deleteStandard(id);
-            router.push("/");
+            navigate("/");
           });
         }
       }}

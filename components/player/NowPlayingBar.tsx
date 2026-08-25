@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import ViewLink from "@/components/ViewLink";
 import { useEffect } from "react";
 import { Play, Pause, X, Disc3 } from "lucide-react";
 import { usePlayer } from "./PlayerProvider";
@@ -24,10 +24,10 @@ export default function NowPlayingBar() {
     <div className="nowbar" style={{ ["--accent" as string]: track.accent ?? "var(--orange)" }}>
       <div className="nowbar-fill" style={{ width: `${pct}%` }} />
       <Disc3 className={`nowbar-disc ${playing ? "spin" : ""}`} size={26} strokeWidth={1.75} />
-      <Link href={track.href ?? "/"} className="nowbar-meta">
+      <ViewLink href={track.href ?? "/"} className="nowbar-meta">
         <span className="t">{track.title}</span>
         {track.subtitle && <span className="s">{track.subtitle}</span>}
-      </Link>
+      </ViewLink>
       <button className="nowbar-btn" onClick={toggle} aria-label={playing ? "一時停止" : "再生"}>
         {playing ? <Pause size={20} fill="currentColor" strokeWidth={0} /> : <Play size={20} fill="currentColor" strokeWidth={0} style={{ marginLeft: 2 }} />}
       </button>

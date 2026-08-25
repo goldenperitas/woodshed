@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import ViewLink from "@/components/ViewLink";
 import { Play, Pause, Dices } from "lucide-react";
 import type { DrillItem } from "@/lib/local/queries";
 import { accentFor } from "@/lib/sleeve";
@@ -136,7 +136,7 @@ export default function DrillRoom({
             <button className={`chip ${mode === "audio" ? "on" : ""}`} onClick={() => switchMode("audio")}>音 → 曲名</button>
             <button className={`chip ${mode === "session" ? "on" : ""}`} onClick={() => switchMode("session")}>セッション</button>
           </div>
-          <Link href="/" className="back">やめる</Link>
+          <ViewLink href="/" className="back">やめる</ViewLink>
         </div>
 
         {allGroups.length > 0 && (

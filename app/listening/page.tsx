@@ -1,14 +1,4 @@
-"use client";
-
-import ListeningRoom from "@/components/ListeningRoom";
-import Booting from "@/components/Booting";
-import LocalError from "@/components/LocalError";
-import { useLocalQuery } from "@/lib/local/store";
-import { listAllTakes } from "@/lib/local/queries";
-
-export default function ListeningPage() {
-  const { data, loading, error } = useLocalQuery(() => listAllTakes());
-  if (error) return <LocalError error={error} />;
-  if (loading || !data) return <Booting label="レコードを並べています" />;
-  return <ListeningRoom takes={data} />;
-}
+// Every route renders the same thing. The screen is chosen on the device from
+// the address bar (see components/Screen.tsx); these files exist so that a
+// cold load or a shared link on any of these URLs is answered at all.
+export { default } from "@/components/Screen";

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import ViewLink from "@/components/ViewLink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Play, Pause, Shuffle, ChevronDown } from "lucide-react";
 import type { ListeningTake } from "@/lib/local/queries";
@@ -120,7 +120,7 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
     <div className="room-ground" style={{ ["--accent" as string]: accent } as React.CSSProperties}>
       <div className="room">
         <div className="topbar">
-          <Link href="/" className="back"><ArrowLeft size={15} strokeWidth={2} /> 棚に戻る</Link>
+          <ViewLink href="/" className="back"><ArrowLeft size={15} strokeWidth={2} /> 棚に戻る</ViewLink>
           <span className="eyebrow">Listening Room</span>
         </div>
 

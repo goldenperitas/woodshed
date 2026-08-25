@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import ViewLink from "@/components/ViewLink";
 import { useState, useTransition } from "react";
 import { Check, Plus, Settings } from "lucide-react";
 import type { Group } from "@/lib/sync/schema";
@@ -30,7 +30,7 @@ export default function GroupsSection({
   if (allGroups.length === 0) {
     return (
       <p className="text-sm" style={{ color: "var(--muted)" }}>
-        グループがありません。<Link href="/groups" style={{ color: "var(--accent2)" }}>グループを作成</Link>すると、似た曲をまとめてドリルできます。
+        グループがありません。<ViewLink href="/groups" style={{ color: "var(--accent2)" }}>グループを作成</ViewLink>すると、似た曲をまとめてドリルできます。
       </p>
     );
   }
@@ -56,9 +56,9 @@ export default function GroupsSection({
           </button>
         );
       })}
-      <Link href="/groups" className="chip" style={{ color: "var(--muted)" }}>
+      <ViewLink href="/groups" className="chip" style={{ color: "var(--muted)" }}>
         <Settings size={13} strokeWidth={2} /> 管理
-      </Link>
+      </ViewLink>
     </div>
   );
 }

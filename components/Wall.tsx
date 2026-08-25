@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import ViewLink from "@/components/ViewLink";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Target, Library, Plus, Search, Radio, X } from "lucide-react";
 import type { StandardListItem } from "@/lib/local/queries";
@@ -93,10 +93,10 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
         <div className="wall-top">
           <div className="eyebrow">Woodshed</div>
           <div className="wall-actions">
-            <Link href="/listening" className="btn" title="Listening Room" aria-label="Listening Room"><Radio size={18} strokeWidth={2} /></Link>
-            <Link href="/drill" className="btn" title="ドリル" aria-label="ドリル"><Target size={18} strokeWidth={2} /></Link>
-            <Link href="/groups" className="btn" title="グループ" aria-label="グループ"><Library size={18} strokeWidth={2} /></Link>
-            <Link href="/standards/new" className="btn btn-accent" title="曲を追加" aria-label="曲を追加"><Plus size={18} strokeWidth={2.5} /></Link>
+            <ViewLink href="/listening" className="btn" title="Listening Room" aria-label="Listening Room"><Radio size={18} strokeWidth={2} /></ViewLink>
+            <ViewLink href="/drill" className="btn" title="ドリル" aria-label="ドリル"><Target size={18} strokeWidth={2} /></ViewLink>
+            <ViewLink href="/groups" className="btn" title="グループ" aria-label="グループ"><Library size={18} strokeWidth={2} /></ViewLink>
+            <ViewLink href="/standards/new" className="btn btn-accent" title="曲を追加" aria-label="曲を追加"><Plus size={18} strokeWidth={2.5} /></ViewLink>
           </div>
         </div>
 
@@ -128,9 +128,9 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
       ) : (
         <div className="grid">
           {shown.map((it, i) => (
-            <Link key={it.id} href={`/standards/${it.id}`}>
+            <ViewLink key={it.id} href={`/standards/${it.id}`}>
               <Sleeve s={it} index={i} />
-            </Link>
+            </ViewLink>
           ))}
         </div>
       )}
@@ -139,7 +139,7 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
           explains why the app is misbehaving would otherwise be unreachable
           from the device it is misbehaving on. */}
       <footer className="wall-foot">
-        <Link href="/debug" className="mono">診断</Link>
+        <ViewLink href="/debug" className="mono">診断</ViewLink>
       </footer>
     </div>
   );

@@ -156,8 +156,8 @@ async function meter(page, label) {
   const count = (ev) => journey.filter((e) => e.ev === ev).length;
   const opens = journey.filter((e) => e.ev === "db.open");
   check(
-    `${label}: the event log recorded the journey`,
-    count("boot") > 0,
+    `${label}: the event log is recording`,
+    journey.length > 0,
     `boot=${count("boot")} db.open=${opens.length} entries=${journey.length}`,
   );
   check(
@@ -171,6 +171,7 @@ async function meter(page, label) {
       ` / 取り合い ${opens.filter((e) => Number(e.d?.attempts ?? 1) > 1 || Number(e.d?.lockMs ?? 0) > 0).length}` +
       ` / payload取り逃し ${count("sw.payload.miss")}`,
   );
+  return { boots: count("boot"), dbOpens: opens.length };
 }
 
 // ---------------------------------------------------------------- scenarios
@@ -185,6 +186,10 @@ async function journey(ctx) {
   await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }).catch(() => {});
   await page.waitForTimeout(3500);
   check("wall opens offline", (await p.wallCount()) === "81", "count=" + (await p.wallCount()));
+
+  // From here on, nothing but taps and the back button. The meter restarts so
+  // it counts what those cost — which is the whole point of the exercise.
+  await startMeter(page);
 
   const landedA = await p.openTune(tunes.A);
   const a1 = await p.tuneState();
@@ -214,18 +219,32 @@ async function journey(ctx) {
   const a2 = await p.tuneState();
   check("tune A still works after B", isTune(a2) && a2 === a1 && landedA2 === tunes.A, `${a1} -> ${a2} @ ${landedA2}`);
 
-  // The other screens, reached by tapping the wall's nav the way a hand does.
+  // The other screens, reached by tapping the wall's nav the way a hand does,
+  // and left with the back button.
+  await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
+  await page.waitForTimeout(2500);
   for (const { href, marker } of SCREENS) {
-    await page.goto(BASE + "/", { waitUntil: "domcontentloaded" }).catch(() => {});
-    await page.waitForTimeout(2500);
     const link = page.locator(`a[href="${href}"]`).first();
     if (await link.count()) await link.click().catch((e) => log("   [click error] " + e.message.slice(0, 80)));
     await page.waitForTimeout(3000);
     const st = await p.screenState(marker);
     check(`${href} opens offline`, st === "OK" && p.pathOf() === href, `${st} @ ${p.pathOf()}`);
+    await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
+    await page.waitForTimeout(2500);
   }
+  check("back on the wall after the tour", (await p.wallCount()) === "81", "count=" + (await p.wallCount()));
 
-  await meter(page, "一巡");
+  // The assertion this whole exercise exists for. Offline, a tap used to cost
+  // a whole document: a new page, a new worker, a new SQLite connection
+  // fighting the outgoing one for the same exclusive OPFS handles. Every bug
+  // in HANDOFF §3 grew out of that. Screens are chosen on the device now, so
+  // the count has to stay at zero.
+  const taps = await meter(page, "一巡");
+  check(
+    "offline taps never reload the document",
+    taps.boots === 0,
+    `boot=${taps.boots} db.open=${taps.dbOpens}`,
+  );
 }
 
 async function twoDocuments(ctx) {
