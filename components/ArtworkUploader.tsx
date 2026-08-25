@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { saveFileOffline, resolveMediaUrl } from "@/lib/offline";
+import { uploadMedia, resolveMediaUrl } from "@/lib/offline";
 import { setArtwork, removeArtwork } from "@/lib/local/mutations";
 
 export default function ArtworkUploader({
@@ -14,9 +14,10 @@ export default function ArtworkUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
+  const [failure, setFailure] = useState("");
 
-  // Artwork lives in the device's blob store like audio does. Older jackets
-  // still point at public/art on the Mac; resolveMediaUrl handles both.
+  // Jackets go to the Mac like audio does, with a copy kept here so the shelf
+  // keeps its covers offline.
   useEffect(() => {
     let created: string | null = null;
     let cancelled = false;
@@ -36,9 +37,12 @@ export default function ArtworkUploader({
 
   async function upload(file: File) {
     setBusy(true);
+    setFailure("");
     try {
-      const key = await saveFileOffline(file);
+      const key = await uploadMedia(file, "art");
       await setArtwork(standardId, key);
+    } catch (e) {
+      setFailure((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -58,6 +62,9 @@ export default function ArtworkUploader({
           <button className="btn btn-danger" onClick={() => removeArtwork(standardId)}>削除</button>
         )}
         <input ref={inputRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+        {failure && (
+          <p className="text-xs" style={{ color: "#ef8f7e", flexBasis: "100%" }}>{failure}</p>
+        )}
       </div>
     </div>
   );

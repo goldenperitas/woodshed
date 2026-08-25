@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
-import { saveFileOffline } from "@/lib/offline";
+import { uploadMedia } from "@/lib/offline";
 import { addRecording, updateRecording } from "@/lib/local/mutations";
 
 // Decode an audio file's duration in the browser (metadata only) so the take
@@ -37,9 +37,10 @@ export default function AudioUploader({ standardId }: { standardId: string }) {
     setFiles((prev) => [...prev, ...Array.from(list).filter((f) => f.type.startsWith("audio") || /\.(mp3|m4a|aac|wav|ogg|opus|flac)$/i.test(f.name))]);
   }
 
-  // Nothing leaves the device. The bytes go into this device's blob store and
-  // the row records the key — so the file is never uploaded anywhere, and the
-  // take is playable offline the moment it is added.
+  // The original goes to the Mac and a copy stays here, so the take is
+  // playable offline straight away and still recoverable if this device's
+  // storage is ever reclaimed. Needs the Mac to be reachable; uploadMedia says
+  // so plainly when it is not.
   async function upload() {
     if (files.length === 0) return;
     setBusy(true);
@@ -48,7 +49,7 @@ export default function AudioUploader({ standardId }: { standardId: string }) {
         setProgress(`${i + 1}/${files.length} 取り込み中…`);
         const file = files[i];
         const [key, durationSec] = await Promise.all([
-          saveFileOffline(file),
+          uploadMedia(file, "audio"),
           fileDuration(file),
         ]);
         const id = await addRecording({
@@ -141,8 +142,16 @@ export default function AudioUploader({ standardId }: { standardId: string }) {
           </button>
         </div>
       )}
-      {progress && files.length === 0 && (
-        <p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>{progress}</p>
+      {/* A failure has to stay on screen while the picked files are still
+          there — otherwise the only report of it disappears with the button
+          label, which is exactly what happens when the Mac is unreachable. */}
+      {progress && (files.length === 0 || progress.startsWith("失敗")) && (
+        <p
+          className="mt-2 text-xs"
+          style={{ color: progress.startsWith("失敗") ? "#ef8f7e" : "var(--muted)" }}
+        >
+          {progress}
+        </p>
       )}
     </div>
   );

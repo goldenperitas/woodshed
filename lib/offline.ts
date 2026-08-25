@@ -5,11 +5,14 @@
 // looping and slow playback all work (unlike SW-streamed Range requests,
 // which Safari handles poorly).
 //
-// Media never goes to the server. Newly added files get a "local:<uuid>" key
-// that lives only on the device that added them; sync carries the metadata
-// row naming that key, not the bytes. Paths without the prefix are legacy
-// uploads still sitting in public/audio on the Mac, and are fetched over HTTP
-// when it is reachable.
+// The originals live on the Mac (see app/api/media/route.ts); a device keeps
+// copies of whatever it wants to play without a signal. So a path like
+// "audio/1786571731823-li5t8ocm.mp3" is both the address on the Mac and the
+// key of this device's copy — one name, two places, and losing the device
+// loses nothing that cannot be fetched again.
+//
+// "local:<uuid>" keys predate that and exist only on the device that added
+// them. Nothing writes them any more; resolveMediaUrl still reads them.
 
 const DB_NAME = "woodshed-offline";
 const STORE = "audio";
@@ -38,6 +41,11 @@ function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest):
         req.onerror = () => reject(req.error);
       }),
   );
+}
+
+/** Keeps bytes already in hand, under the path they were stored at. */
+export async function keepOffline(key: string, blob: Blob): Promise<void> {
+  await tx("readwrite", (s) => s.put({ key, blob, savedAt: Date.now() }));
 }
 
 export async function saveOffline(key: string, url: string): Promise<void> {
@@ -70,11 +78,44 @@ export async function storageEstimate(): Promise<{ usage: number; quota: number 
   return { usage: 0, quota: 0 };
 }
 
-/** Store a picked file and return the key to record on the row. */
-export async function saveFileOffline(file: Blob): Promise<string> {
-  const key = "local:" + crypto.randomUUID();
-  await tx("readwrite", (s) => s.put({ key, blob: file, savedAt: Date.now() }));
-  return key;
+/**
+ * Sends a picked file to the Mac and keeps a copy here, returning the path to
+ * record on the row.
+ *
+ * Deliberately fails when the Mac cannot be reached rather than falling back
+ * to a device-only key. A take that exists on one phone and nowhere else is
+ * gone the day iOS reclaims the storage, and no amount of syncing brings it
+ * back — better to say so at the moment of adding.
+ */
+export async function uploadMedia(file: File, kind: "audio" | "art"): Promise<string> {
+  const form = new FormData();
+  form.set("kind", kind);
+  form.set("file", file);
+
+  let res: Response;
+  try {
+    res = await fetch("/api/media", { method: "POST", body: form });
+  } catch {
+    throw new Error("Macに繋がっていないので追加できません。原本はMacに置きます。");
+  }
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new Error(detail?.error ?? `保存に失敗しました (HTTP ${res.status})`);
+  }
+  const { path } = (await res.json()) as { path: string };
+
+  // The adding device should not have to download what it just handed over.
+  await keepOffline(path, file);
+  return path;
+}
+
+/**
+ * Where the Mac serves a stored path from. Not public/ — `next start` only
+ * answers for files that existed at build time, and media arrives afterwards
+ * (see app/media/[...file]/route.ts).
+ */
+export function mediaUrl(path: string): string {
+  return "/media/" + path;
 }
 
 /**
@@ -86,7 +127,7 @@ export async function resolveMediaUrl(path: string | null): Promise<string | nul
   if (!path) return null;
   const blob = await getOfflineBlob(path);
   if (blob) return URL.createObjectURL(blob);
-  return path.startsWith("local:") ? null : "/" + path;
+  return path.startsWith("local:") ? null : mediaUrl(path);
 }
 
 /** True when the bytes for this path are on this device. */

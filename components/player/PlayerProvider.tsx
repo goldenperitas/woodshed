@@ -1,5 +1,7 @@
 "use client";
 
+import { mediaUrl } from "@/lib/offline";
+
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState,
 } from "react";
@@ -140,7 +142,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     // the non-local path can be guessed synchronously, so fall back to the icon.
     const img =
       track.artworkPath && !track.artworkPath.startsWith("local:")
-        ? "/" + track.artworkPath
+        ? mediaUrl(track.artworkPath)
         : track.artworkUrl ?? "/icon-512.png";
     const type = /\.png$/i.test(img) ? "image/png" : /\.jpe?g$/i.test(img) ? "image/jpeg" : "";
     try {

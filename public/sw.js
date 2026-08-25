@@ -6,7 +6,7 @@
 // Media is NOT cached here — audio and artwork live in IndexedDB and play via
 // object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v12";
+const CACHE = "woodshed-v13";
 // Jackets fetched from the Mac live in their own cache. The versioned cache is
 // emptied on every update — code and shells should be replaced wholesale — but
 // re-downloading artwork requires being online again, which is exactly what
@@ -89,12 +89,13 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   // Never intercept the sync endpoint, or audio: takes are large and Safari
-  // needs real Range responses, which is why they are stored as blobs instead.
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/audio/")) return;
+  // needs real Range responses, which is why a device keeps whole blobs of the
+  // ones it wants offline instead of streaming them through here.
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/audio/")) return;
 
-  // Jackets uploaded before media moved onto the device still live on the Mac.
-  // Cache-first, so the shelf keeps its covers offline.
-  if (url.pathname.startsWith("/art/")) {
+  // Jackets come from the Mac. Cache-first, so the shelf keeps its covers
+  // offline without every device having to save them by hand.
+  if (url.pathname.startsWith("/media/art/")) {
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => put(req, res, MEDIA_CACHE))),
     );

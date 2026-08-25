@@ -3,7 +3,7 @@
 ジャズスタンダードを頭に叩き込むための個人用ポータル。
 YouTube に散らばる音源・学びを 1 曲ごとにまとめ、**思い出す訓練（リコール・ドリル）**まで回す。
 
-**ローカルファースト構成**。画面は端末内の SQLite (OPFS) から描画されるので、圏外でも全機能が動く。MacBook は「同期先」であって描画サーバーではない。音源は端末内にのみ置かれ、サーバーには一切上がらない。
+**ローカルファースト構成**。画面は端末内の SQLite (OPFS) から描画されるので、圏外でも全機能が動く。MacBook は「同期先」であって描画サーバーではない。音源の原本は Mac にあり、端末は聴きたいものの複製を持つ。
 
 ## できること
 
@@ -29,13 +29,14 @@ Next.js 16 (App Router) / SQLite + Drizzle / Tailwind v4 / PWA
 ```
 端末A                        Mac                       端末B
 SQLite (OPFS/wasm)  ←─ /api/sync ─→  SQLite      ←─ /api/sync ─→  SQLite
-音源 Blob (IndexedDB)         （メタデータのみ）        音源 Blob
+音源の複製 (IndexedDB) ←── /media/ ── 音源の原本 ──── /media/ ──→ 音源の複製
 ```
 
 - **描画元は常に端末内の SQLite**。サーバーが落ちていても圏外でも画面は出る
 - 同期は**メタデータだけ**。曲名・コード解釈・メモ・リージョン・復習ログが対象
-- **音源とジャケットは端末から出ない**。行が持つのは `local:<uuid>` という鍵だけで、
-  バイト列は同期されない（端末ごとに入れ直す）
+- **音源とジャケットの原本は Mac**（`public/audio` / `public/art`、`/media/…` で配信）。
+  同期で運ばれるのはその**パスだけ**で、バイト列は各端末が「オフライン保存」で複製する。
+  端末のストレージが iOS に退避されても、Mac から取り直せる
 - 衝突解決は行単位の last-write-wins。ID は UUID なのでオフライン採番できる
 - 削除は物理削除せずトゥームストーン（`deleted_at`）。でないと同期で復活する
 
@@ -44,12 +45,15 @@ SQLite (OPFS/wasm)  ←─ /api/sync ─→  SQLite      ←─ /api/sync ─→
 | `lib/sync/schema.ts` | 端末と Mac が共有するテーブル定義 |
 | `lib/sync/protocol.ts` | 同期の電文形式と衝突ルール |
 | `lib/local/` | 端末側 DB・クエリ・書き込み・同期エンジン |
+| `components/Screen.tsx` | アドレスバーから画面を選ぶ。遷移は `lib/nav.ts` の pushState |
+| `app/api/media/` `app/media/` | Mac の音源・ジャケットの受け口と配信（Range対応） |
 | `lib/server/db.ts` | Mac 側の同期ピア |
 | `public/db-worker.js` | OPFS SQLite を動かす Worker（バンドラ外） |
 
 - Mac 側 DB: `./data/woodshed.db`（git 管理外）
-- 旧音源: `./public/audio/`（git 管理外。ローカルファースト化より前に上げた分。
-  Mac に届く間はそのまま再生でき、`Save` で端末に取り込める）
+- 音源: `./public/audio/`、ジャケット: `./public/art/`（どちらも git 管理外）。
+  `next start` は**ビルド時にあったファイルしか静的配信しない**ので、配信は
+  `/media/…` のルートハンドラが担当している
 
 ### 既存DBの移行
 

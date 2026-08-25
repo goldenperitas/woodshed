@@ -9,7 +9,7 @@ import { fmtTime } from "@/lib/format";
 import {
   addRegion, deleteRegion, setReference, deleteRecording, updateRecording, addNote,
 } from "@/lib/local/mutations";
-import { saveOffline, removeOffline, getOfflineBlob, listOfflineKeys, resolveMediaUrl } from "@/lib/offline";
+import { saveOffline, removeOffline, getOfflineBlob, listOfflineKeys, resolveMediaUrl, mediaUrl } from "@/lib/offline";
 import { useMediaUrl } from "@/lib/local/media";
 import { usePlayer } from "@/components/player/PlayerProvider";
 
@@ -136,8 +136,8 @@ export default function Woodshed({
     const key = take.filePath;
     const next = new Set(offlineSet);
     try {
-      if (offlineSet.has(key)) { await removeOffline(key); next.delete(key); setSrc("/" + key); }
-      else { await saveOffline(key, "/" + key); const b = await getOfflineBlob(key); if (b) setSrc(URL.createObjectURL(b)); next.add(key); }
+      if (offlineSet.has(key)) { await removeOffline(key); next.delete(key); setSrc(mediaUrl(key)); }
+      else { await saveOffline(key, mediaUrl(key)); const b = await getOfflineBlob(key); if (b) setSrc(URL.createObjectURL(b)); next.add(key); }
       setOfflineSet(next);
     } catch { alert("オフライン保存に失敗しました"); }
   }, [take, offlineSet]);
