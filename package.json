@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3251",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3251",
     "lint": "eslint",
     "test:offline": "node scripts/offline-test.js"
   },

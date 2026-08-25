@@ -231,5 +231,7 @@ Macから、音源はIndexedDBに残る）。
 
 - 実データ移行済み: 81曲 / 音源20件 / 復習ログ1件（`scripts/migrate-to-uuid.js`、再実行可）
 - `scripts/import-standards.js` はユーザーの未追跡ファイル。コミットしないこと
-- ポート3000でユーザーが `next start` を動かしている可能性がある。
-  検証には3100を使う
+- Woodshed のポートは **3251**（`package.json` と `.claude/launch.json`)。
+  3000 は他の開発と取り合いになるので使わない。Tailscale の公開先も 3251
+  （`tailscale serve --bg 3251`）
+- 検証には **3100** を使う。ユーザーが 3251 で動かしているものを止めずに済む

@@ -69,7 +69,9 @@ node scripts/migrate-to-uuid.js
 npm run dev
 ```
 
-Mac 上で `http://localhost:3000`。音源のアップロードは Mac のブラウザでドラッグ＆ドロップが楽。
+Mac 上で `http://localhost:3251`。音源のアップロードは Mac のブラウザでドラッグ＆ドロップが楽。
+
+> ポートは 3251 に固定してある（`package.json`）。3000 は他の開発と取り合いになるため。
 
 ## iPhone から使う（PWA + オフライン）
 
@@ -77,7 +79,7 @@ Mac 上で `http://localhost:3000`。音源のアップロードは Mac のブ�
 
 ```bash
 # Mac に Tailscale を入れ、iPhone にも同じ tailnet で入る
-tailscale serve --bg 3000          # https://<mac-name>.<tailnet>.ts.net に 3000 を公開
+tailscale serve --bg 3251          # https://<mac-name>.<tailnet>.ts.net に 3251 を公開
 tailscale serve status             # URL を確認
 ```
 
