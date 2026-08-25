@@ -9,6 +9,7 @@
 
 import { rawAll, runScript, getMeta, setMeta } from "./db";
 import { notifyChanged } from "./bus";
+import { logEvent } from "./log";
 import { SYNC_TABLES, syncColumns } from "@/lib/sync/protocol";
 import type { PullResponse, SyncPayload, SyncRow, SyncTable } from "@/lib/sync/protocol";
 
@@ -37,6 +38,11 @@ export function lastSync(): (SyncResult & { at: number }) | null {
 }
 
 function recordSync(result: SyncResult) {
+  logEvent(result.ok ? "sync.ok" : "sync.fail", {
+    pushed: result.pushed,
+    pulled: result.pulled,
+    ...(result.error ? { msg: result.error } : {}),
+  });
   if (typeof localStorage === "undefined") return;
   try {
     localStorage.setItem(LAST_KEY, JSON.stringify({ ...result, at: Date.now() }));

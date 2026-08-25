@@ -117,6 +117,8 @@ const check = (name, ok, detail = "") => {
   for (const [asset, ok] of Object.entries(cached)) check("cached " + asset, ok);
 
   // ---- offline ----
+  // Cleared so the meter at the end describes the offline journey alone.
+  await page.evaluate(() => localStorage.removeItem("woodshed.log"));
   await ctx.setOffline(true);
   log("\n--- offline ---");
 
@@ -173,6 +175,33 @@ const check = (name, ok, detail = "") => {
     const st = await screenState(marker);
     check(`${href} opens offline`, st === "OK" && pathOf() === href, `${st} @ ${pathOf()}`);
   }
+
+  // ---- the instrument ----
+  // The device's own event log is the only way to see what happens inside the
+  // iPhone, so it has to be covered like anything else. The meter it prints is
+  // the baseline for the work to reduce it: today every offline tap costs a
+  // whole document and a fresh database open.
+  const journey = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("woodshed.log") || "[]"),
+  );
+  const count = (ev) => journey.filter((e) => e.ev === ev).length;
+  const opens = journey.filter((e) => e.ev === "db.open");
+  check(
+    "the event log recorded the journey",
+    count("boot") > 0 && opens.length > 0,
+    `boot=${count("boot")} db.open=${opens.length} entries=${journey.length}`,
+  );
+  check(
+    "nothing threw during the journey",
+    count("error") === 0,
+    journey.filter((e) => e.ev === "error").map((e) => e.d?.msg).join(" / ") || "none",
+  );
+  log(
+    `   [meter] 文書ロード ${count("boot")} / DB開き直し ${opens.length}` +
+      ` / 最長 ${Math.max(0, ...opens.map((e) => Number(e.d?.ms ?? 0)))}ms` +
+      ` / 取り合い ${opens.filter((e) => Number(e.d?.attempts ?? 1) > 1 || Number(e.d?.lockMs ?? 0) > 0).length}` +
+      ` / payload取り逃し ${count("sw.payload.miss")}`,
+  );
 
   await browser.close();
   log(failures ? `\n${failures} FAILURE(S)` : "\nall offline checks passed");

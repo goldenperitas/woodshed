@@ -12,6 +12,7 @@
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import * as schema from "@/lib/sync/schema";
 import { SYNC_TABLES } from "@/lib/sync/schema";
+import { logEvent } from "./log";
 
 type Method = "run" | "all" | "values" | "get";
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void };
@@ -22,6 +23,7 @@ const pending = new Map<number, Pending>();
 
 function getWorker(): Worker {
   if (worker) return worker;
+  logEvent("db.worker");
   worker = new Worker("/db-worker.js", { type: "module" });
   installHandoff();
   worker.onmessage = (e: MessageEvent) => {
@@ -32,6 +34,7 @@ function getWorker(): Worker {
     ok ? p.resolve(result) : p.reject(new Error(error));
   };
   worker.onerror = (e) => {
+    logEvent("db.worker.fail", { msg: e.message });
     const err = new Error(`db worker failed: ${e.message}`);
     for (const p of pending.values()) p.reject(err);
     pending.clear();
@@ -61,16 +64,43 @@ let handoffInstalled = false;
 function installHandoff() {
   if (handoffInstalled || typeof window === "undefined") return;
   handoffInstalled = true;
-  window.addEventListener("pagehide", () => {
+  window.addEventListener("pagehide", (e) => {
+    logEvent("db.close", { bfcache: e.persisted });
     void call("close").catch(() => {});
   });
   // Reopening is lazy: the worker opens on the next query, so a restored page
   // needs nothing here beyond its normal render.
 }
 
+type OpenInfo = {
+  version: string;
+  /** false when the worker already had it open and this call cost nothing */
+  opened?: boolean;
+  ms?: number;
+  lockMs?: number;
+  lockTimedOut?: boolean;
+  attempts?: number;
+};
+
 /** Resolves once the database is open and migrated. Safe to await repeatedly. */
 export async function ready(): Promise<{ version: string }> {
-  const info = await call<{ version: string }>("init");
+  let info: OpenInfo;
+  try {
+    info = await call<OpenInfo>("init");
+  } catch (e) {
+    logEvent("db.open.fail", { msg: (e as Error).message });
+    throw e;
+  }
+  // Only a real open is worth a line. This runs ahead of every query, and a
+  // log full of "already open" would bury the events that matter.
+  if (info.opened) {
+    logEvent("db.open", {
+      ms: info.ms,
+      attempts: info.attempts,
+      lockMs: info.lockMs,
+      ...(info.lockTimedOut ? { lockTimedOut: true } : {}),
+    });
+  }
   await assertNotSilentlyEmpty();
   return info;
 }
@@ -89,7 +119,9 @@ async function assertNotSilentlyEmpty(): Promise<void> {
     localStorage.setItem(ROW_MARKER, String(total));
     return;
   }
-  if (Number(localStorage.getItem(ROW_MARKER) ?? 0) > 0) {
+  const floor = Number(localStorage.getItem(ROW_MARKER) ?? 0);
+  if (floor > 0) {
+    logEvent("db.empty", { floor });
     throw new Error(
       "この端末のデータを読み込めませんでした（空のデータベースが開かれています）",
     );

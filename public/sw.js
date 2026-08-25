@@ -6,7 +6,7 @@
 // Media is NOT cached here — audio and artwork live in IndexedDB and play via
 // object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v9";
+const CACHE = "woodshed-v10";
 // Jackets fetched from the Mac live in their own cache. The versioned cache is
 // emptied on every update — code and shells should be replaced wholesale — but
 // re-downloading artwork requires being online again, which is exactly what
@@ -56,6 +56,19 @@ self.addEventListener("install", (e) => {
   );
 });
 
+// The worker has nowhere of its own to keep a log, and it is the piece of this
+// app least visible from the outside — offline, it decides what every screen
+// is made of. So it tells the open documents what it did and they write it
+// down. Fire and forget: reporting must never delay a response.
+function report(ev, d) {
+  self.clients
+    .matchAll({ includeUncontrolled: true, type: "window" })
+    .then((cs) => {
+      for (const c of cs) c.postMessage({ woodshed: "log", ev, d });
+    })
+    .catch(() => {});
+}
+
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
@@ -67,7 +80,8 @@ self.addEventListener("activate", (e) => {
             .map((k) => caches.delete(k)),
         ),
       )
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(() => report("sw.activate", { cache: CACHE })),
   );
 });
 
@@ -132,7 +146,11 @@ self.addEventListener("fetch", (e) => {
         .then((res) => put(req, res))
         .catch(async () => {
           const exact = await caches.match(req);
-          return exact && isPayloadResponse(exact) ? exact : Response.error();
+          if (exact && isPayloadResponse(exact)) return exact;
+          // Reported because this is the moment a client-side transition turns
+          // into a full page load — the cost this design is trying to avoid.
+          report("sw.payload.miss", { path: url.pathname });
+          return Response.error();
         }),
     );
     return;
@@ -157,9 +175,16 @@ self.addEventListener("fetch", (e) => {
       })
       .catch(async () => {
         const exact = await caches.match(req);
-        if (exact) return exact;
+        if (exact) {
+          report("sw.doc", { path: url.pathname, from: "exact" });
+          return exact;
+        }
         const shell = await caches.match(documentKey(url));
-        if (shell) return shell;
+        if (shell) {
+          report("sw.doc", { path: url.pathname, from: "shell", key: documentKey(url) });
+          return shell;
+        }
+        report("sw.doc", { path: url.pathname, from: "root" });
         return caches.match("/");
       }),
   );

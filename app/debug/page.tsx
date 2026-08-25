@@ -14,6 +14,8 @@ import { rawAll, ready, getMeta, resetLocalDatabase } from "@/lib/local/db";
 import { sync, lastSync, pendingCount } from "@/lib/local/sync";
 import { SYNC_TABLES } from "@/lib/sync/schema";
 import { listOfflineKeys, storageEstimate } from "@/lib/offline";
+import { readLog, clearLog, formatLog, summarize, RUN_ID } from "@/lib/local/log";
+import type { LogEntry } from "@/lib/local/log";
 
 type Row = { label: string; value: string; bad?: boolean };
 
@@ -21,12 +23,23 @@ const KEY_ASSETS = ["/sqlite/sqlite3.wasm", "/db-worker.js", "/standards/_shell"
 
 export default function DebugPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState("");
 
   const collect = useCallback(async (): Promise<Row[]> => {
     const out: Row[] = [];
     const push = (label: string, value: unknown, bad = false) =>
       out.push({ label, value: String(value), bad });
+
+    // The meter. Boots and DB opens are the pair worth watching: while an
+    // offline screen change is a full page load, each tap adds one of each.
+    const m = summarize();
+    push(`直近${m.windowMin}分の文書ロード`, `${m.boots} 回 (うち再読込/戻る ${m.reloads})`);
+    push(`直近${m.windowMin}分のDB開き直し`, `${m.dbOpens} 回`, m.dbContended > 0);
+    push("  最長", `${m.dbOpenMaxMs} ms`);
+    push("  取り合いが起きた回数", `${m.dbContended} 回`, m.dbContended > 0);
+    push("  失敗イベント", `${m.failures} 件`, m.failures > 0);
+    push("この文書", RUN_ID);
 
     push("オンライン", navigator.onLine ? "yes" : "no (圏外)");
     push("表示モード", window.matchMedia("(display-mode: standalone)").matches ? "PWA" : "ブラウザ");
@@ -95,12 +108,18 @@ export default function DebugPage() {
 
   const refresh = useCallback(() => {
     collect().then(setRows);
+    setLog(readLog());
   }, [collect]);
 
   useEffect(() => {
     let cancelled = false;
+    // Read after collect() resolves rather than in the effect body: this runs
+    // in the same commit as the recorder that writes the boot event, and
+    // reading first would miss it.
     collect().then((r) => {
-      if (!cancelled) setRows(r);
+      if (cancelled) return;
+      setRows(r);
+      setLog(readLog());
     });
     return () => {
       cancelled = true;
@@ -159,6 +178,80 @@ export default function DebugPage() {
                   <td style={{ padding: "5px 8px 5px 0", color: "var(--muted)", whiteSpace: "pre" }}>{r.label}</td>
                   <td style={{ padding: "5px 0", color: r.bad ? "#ef8f7e" : "var(--fg)", wordBreak: "break-all" }}>
                     {r.value}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h2 className="text-sm font-bold" style={{ margin: "18px 0 6px" }}>
+        できごと <span style={{ color: "var(--muted)", fontWeight: 400 }}>({log.length})</span>
+      </h2>
+      <p className="text-xs" style={{ color: "var(--muted)", marginBottom: 8 }}>
+        この端末で起きたことの記録。新しいものが上。おかしなことが起きたら、ここをコピーして渡してください。
+      </p>
+
+      <div className="card p-3" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <button
+          className="btn"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(formatLog(log));
+              setBusy("copied");
+              window.setTimeout(() => setBusy(""), 1200);
+            } catch {
+              alert("コピーできませんでした。下のテキストを長押しで選択してください。");
+            }
+          }}
+        >
+          {busy === "copied" ? "コピーしました" : "コピー"}
+        </button>
+        <button
+          className="btn btn-danger"
+          onClick={() => {
+            if (!confirm("記録を消します。")) return;
+            clearLog();
+            setLog([]);
+          }}
+        >
+          記録を消す
+        </button>
+      </div>
+
+      {log.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--muted)" }}>まだ何も記録されていません。</p>
+      ) : (
+        <div className="card p-3">
+          <table className="mono" style={{ fontSize: 10, width: "100%", borderCollapse: "collapse" }}>
+            <tbody>
+              {[...log].reverse().map((e, i) => (
+                <tr key={log.length - i} style={{ borderTop: i ? "1px solid var(--line)" : undefined }}>
+                  <td style={{ padding: "4px 6px 4px 0", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                    {new Date(e.t).toLocaleTimeString("ja-JP")}
+                  </td>
+                  <td
+                    style={{ padding: "4px 6px 4px 0", color: "var(--muted)", whiteSpace: "nowrap" }}
+                    title="どの文書が書いたか。値が変わっていればページが読み直されている"
+                  >
+                    {e.run}
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 6px 4px 0",
+                      whiteSpace: "nowrap",
+                      color: e.ev === "error" || e.ev.endsWith(".fail") ? "#ef8f7e" : "var(--fg)",
+                    }}
+                  >
+                    {e.ev}
+                  </td>
+                  <td style={{ padding: "4px 0", color: "var(--muted)", wordBreak: "break-all" }}>
+                    {e.d
+                      ? Object.entries(e.d)
+                          .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
+                          .join(" ")
+                      : ""}
                   </td>
                 </tr>
               ))}

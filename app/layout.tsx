@@ -4,6 +4,7 @@ import RegisterSW from "@/components/RegisterSW";
 import PullToRefresh from "@/components/PullToRefresh";
 import PlayerProvider from "@/components/player/PlayerProvider";
 import SyncEngine from "@/components/SyncEngine";
+import EventRecorder from "@/components/EventRecorder";
 
 export const metadata: Metadata = {
   title: "Woodshed",
@@ -25,6 +26,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="ja">
       <body>
         <PlayerProvider>
+          {/* First, so the record of this document starting exists before any
+              screen's effects run — including the diagnostics screen, which
+              reads it. */}
+          <EventRecorder />
           <PullToRefresh />
           <div className="app-shell">{children}</div>
           <RegisterSW />

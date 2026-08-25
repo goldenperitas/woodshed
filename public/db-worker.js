@@ -165,13 +165,13 @@ const ACQUIRE_ATTEMPTS = 15;
 const ACQUIRE_DELAY_MS = 200;
 
 function takeLock() {
-  if (!navigator.locks) return Promise.resolve();
+  if (!navigator.locks) return Promise.resolve({ timedOut: false });
   return new Promise((done) => {
-    const proceed = setTimeout(done, LOCK_WAIT_MS);
+    const proceed = setTimeout(() => done({ timedOut: true }), LOCK_WAIT_MS);
     navigator.locks
       .request(LOCK_NAME, { mode: "exclusive" }, () => {
         clearTimeout(proceed);
-        done();
+        done({ timedOut: false });
         // Held until close() resolves it, which is what releases the lock.
         return new Promise((release) => {
           releaseLock = release;
@@ -179,16 +179,19 @@ function takeLock() {
       })
       .catch(() => {
         clearTimeout(proceed);
-        done();
+        done({ timedOut: true });
       });
   });
 }
 
+// Reports how many attempts it took: one means the handles were free, more
+// means another document was still holding them. That number is the honest
+// measure of how much contention this design is actually causing.
 async function installPool(sqlite3) {
   let last;
   for (let i = 0; i < ACQUIRE_ATTEMPTS; i++) {
     try {
-      return await sqlite3.installOpfsSAHPoolVfs({ name: POOL_NAME });
+      return { vfs: await sqlite3.installOpfsSAHPoolVfs({ name: POOL_NAME }), attempts: i + 1 };
     } catch (e) {
       last = e;
       await sleep(ACQUIRE_DELAY_MS);
@@ -201,9 +204,12 @@ async function installPool(sqlite3) {
 }
 
 async function open() {
+  const started = Date.now();
   const mine = generation;
   const sqlite3 = await sqlite3InitModule({ print: () => {}, printErr: () => {} });
-  await takeLock();
+  const lockStarted = Date.now();
+  const lock = await takeLock();
+  const lockMs = Date.now() - lockStarted;
   if (mine !== generation) {
     // close() ran while we were queued behind another document's lock.
     if (releaseLock) {
@@ -212,17 +218,42 @@ async function open() {
     }
     throw new Error("closed while opening");
   }
-  if (!pool) pool = await installPool(sqlite3);
-  else if (pool.isPaused()) await pool.unpauseVfs();
+  let attempts = 0;
+  if (!pool) {
+    const installed = await installPool(sqlite3);
+    pool = installed.vfs;
+    attempts = installed.attempts;
+  } else if (pool.isPaused()) {
+    await pool.unpauseVfs();
+  }
   db = new pool.OpfsSAHPoolDb(DB_PATH);
   db.exec("PRAGMA foreign_keys = OFF");
   db.exec(SCHEMA);
-  return { version: sqlite3.version.libVersion };
+  openReport = {
+    version: sqlite3.version.libVersion,
+    opened: true,
+    ms: Date.now() - started,
+    lockMs,
+    lockTimedOut: lock.timedOut,
+    attempts,
+  };
+  return openReport;
+}
+
+// What the last real open cost. Handed to the page exactly once: the page is
+// the only side of this with storage to write a log to, and repeating the same
+// numbers on every query would bury everything else in it.
+let openReport = null;
+
+function takeOpenReport() {
+  const r = openReport;
+  openReport = null;
+  return r ?? { version: "open", opened: false };
 }
 
 /** Opens on demand, so a close/reopen cycle around a navigation is invisible. */
 function ensureOpen() {
-  if (db) return Promise.resolve({ version: "open" });
+  if (db) return Promise.resolve({ version: "open", opened: false });
   if (!opening) {
     opening = open().catch((e) => {
       opening = null;
@@ -277,7 +308,9 @@ function run(sql, params, method) {
 }
 
 const handlers = {
-  init: () => ensureOpen(),
+  // ensureOpen() already ran in the message handler below, so this only
+  // collects what that open cost.
+  init: () => takeOpenReport(),
   close: () => close(),
   exec: ({ sql, params, method }) => run(sql, params, method),
   batch: ({ items }) => items.map((it) => run(it.sql, it.params, it.method)),
