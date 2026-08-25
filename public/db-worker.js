@@ -150,31 +150,37 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // back/forward cache, which keeps its handles) while the incoming one boots.
 //
 // Two mechanisms keep that from surfacing as an empty library:
-//   1. a Web Lock, so a second document waits its turn instead of racing
-//   2. retries, for the window where a terminated worker's handles are still
+//   1. a Web Lock, so documents queue instead of racing
+//   2. retries, for the window where a departed worker's handles are still
 //      being reclaimed by the browser
+//
+// The lock is advisory on purpose. A document frozen into the back/forward
+// cache can hold it without ever running the code that would release it, and a
+// hard dependency on the lock would turn that into a permanently unopenable
+// app. So waiting for it is capped, and the real arbiter is whether the access
+// handles can actually be taken.
 const LOCK_NAME = "woodshed-db-owner";
-const LOCK_TIMEOUT_MS = 10000;
+const LOCK_WAIT_MS = 2500;
 const ACQUIRE_ATTEMPTS = 15;
 const ACQUIRE_DELAY_MS = 200;
 
 function takeLock() {
   if (!navigator.locks) return Promise.resolve();
-  return new Promise((granted, failed) => {
-    const timer = setTimeout(
-      () => failed(new Error("別のタブがデータベースを使用中です")),
-      LOCK_TIMEOUT_MS,
-    );
+  return new Promise((done) => {
+    const proceed = setTimeout(done, LOCK_WAIT_MS);
     navigator.locks
       .request(LOCK_NAME, { mode: "exclusive" }, () => {
-        clearTimeout(timer);
-        granted();
+        clearTimeout(proceed);
+        done();
         // Held until close() resolves it, which is what releases the lock.
         return new Promise((release) => {
           releaseLock = release;
         });
       })
-      .catch(failed);
+      .catch(() => {
+        clearTimeout(proceed);
+        done();
+      });
   });
 }
 
@@ -188,7 +194,10 @@ async function installPool(sqlite3) {
       await sleep(ACQUIRE_DELAY_MS);
     }
   }
-  throw last;
+  throw new Error(
+    "データベースを開けませんでした（別のタブ/ウィンドウで開いている可能性があります）: " +
+      String(last?.message ?? last),
+  );
 }
 
 async function open() {

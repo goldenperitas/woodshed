@@ -150,4 +150,23 @@ export async function setMeta(key: string, value: string): Promise<void> {
   });
 }
 
+/**
+ * Throws away this device's database and reloads, so the next boot rebuilds it
+ * from the Mac.
+ *
+ * Safe by construction: the metadata all lives on the Mac too, and media is in
+ * IndexedDB rather than here — the rebuilt rows point straight back at the
+ * blobs that are still on the device.
+ */
+export async function resetLocalDatabase(): Promise<void> {
+  await call("close").catch(() => {});
+  worker?.terminate();
+  worker = null;
+  const root = await navigator.storage.getDirectory();
+  for await (const [name] of (root as unknown as { entries(): AsyncIterable<[string, unknown]> }).entries()) {
+    if (name.includes("woodshed")) await root.removeEntry(name, { recursive: true });
+  }
+  localStorage.removeItem(ROW_MARKER);
+}
+
 export { schema };

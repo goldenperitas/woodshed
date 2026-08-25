@@ -6,7 +6,12 @@
 // Media is NOT cached here — audio and artwork live in IndexedDB and play via
 // object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v6";
+const CACHE = "woodshed-v7";
+// Jackets fetched from the Mac live in their own cache. The versioned cache is
+// emptied on every update — code and shells should be replaced wholesale — but
+// re-downloading artwork requires being online again, which is exactly what
+// the user may no longer be.
+const MEDIA_CACHE = "woodshed-media";
 
 // Precached on install so the first offline visit has a shell + fonts + icons.
 // Hashed /_next/static chunks can't be listed here (names change per build);
@@ -21,6 +26,7 @@ const PRECACHE = [
   "/groups",
   "/listening",
   "/standards/new",
+  "/debug",
   STANDARD_SHELL,
   "/db-worker.js",
   "/sqlite/sqlite3.mjs",
@@ -54,7 +60,13 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k.startsWith("woodshed-v") && k !== CACHE)
+            .map((k) => caches.delete(k)),
+        ),
+      )
       .then(() => self.clients.claim()),
   );
 });
@@ -72,7 +84,7 @@ self.addEventListener("fetch", (e) => {
   // Cache-first, so the shelf keeps its covers offline.
   if (url.pathname.startsWith("/art/")) {
     e.respondWith(
-      caches.match(req).then((hit) => hit || fetch(req).then((res) => put(req, res))),
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => put(req, res, MEDIA_CACHE))),
     );
     return;
   }
@@ -97,38 +109,21 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Route payloads for client-side navigation.
-  //
-  // These cannot be cached by request: Next varies them on
-  // next-router-state-tree, whose value depends on which page you navigated
-  // *from*, so a stored response almost never matches the next request. Left
-  // alone, every offline navigation fails and degrades to a full document
-  // load — which tears down the database worker and loses the current route.
-  //
-  // So they are stored under a normalised key instead. Every tune shares one
-  // entry, since the page carries no server data and differs only by the id
-  // in the address bar.
-  if (isRouteData(req, url)) {
-    e.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res.ok) cacheUnder(routeDataKey(url), res.clone());
-          return res;
-        })
-        // No cached payload: fail, and let Next fall back to a document load,
-        // which the handler below can still answer from the shell.
-        .catch(() => caches.match(routeDataKey(url)).then((hit) => hit || Response.error())),
-    );
-    return;
-  }
-
   // Documents: network-first, falling back through progressively more generic
   // shells. A tune this device has never opened still works, because the shell
-  // is identical for every id.
+  // is identical for every id and the page reads which tune to show from the
+  // address bar.
+  //
+  // Offline, Next cannot fetch a route payload, so every navigation arrives
+  // here as a full document load. That is slow but correct; intercepting the
+  // payload requests to avoid it was tried and broke navigation outright.
   e.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok && res.type === "basic") cacheUnder(documentKey(url), res.clone());
+        if (res.ok && res.type === "basic") {
+          const shell = res.clone();
+          caches.open(CACHE).then((c) => c.put(documentKey(url), shell));
+        }
         return put(req, res);
       })
       .catch(async () => {
@@ -151,22 +146,13 @@ function documentKey(url) {
   return isTunePage(url) ? STANDARD_SHELL : url.pathname;
 }
 
-function routeDataKey(url) {
-  return "/__route" + (isTunePage(url) ? "/standards/[id]" : url.pathname);
-}
 
-function isRouteData(req, url) {
-  return req.headers.get("rsc") !== null || url.searchParams.has("_rsc");
-}
 
-function cacheUnder(key, res) {
-  caches.open(CACHE).then((c) => c.put(key, res));
-}
 
-function put(req, res) {
+function put(req, res, cacheName) {
   if (res && res.ok && res.type === "basic") {
     const copy = res.clone();
-    caches.open(CACHE).then((c) => c.put(req, copy));
+    caches.open(cacheName || CACHE).then((c) => c.put(req, copy));
   }
   return res;
 }

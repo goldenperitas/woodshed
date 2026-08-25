@@ -23,12 +23,39 @@ export type SyncResult = {
 
 let inFlight: Promise<SyncResult> | null = null;
 
+// Kept so the diagnostics screen can show why a sync failed. Sync is silent by
+// design — the app works without it — which otherwise leaves no trace at all.
+const LAST_KEY = "woodshed.lastSync";
+
+export function lastSync(): (SyncResult & { at: number }) | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    return JSON.parse(localStorage.getItem(LAST_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+function recordSync(result: SyncResult) {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(LAST_KEY, JSON.stringify({ ...result, at: Date.now() }));
+  } catch {
+    // storage full or blocked — diagnostics are not worth failing a sync over
+  }
+}
+
 /** Runs a full sync. Concurrent callers share the one in-flight attempt. */
 export function sync(): Promise<SyncResult> {
   if (!inFlight) {
-    inFlight = runSync().finally(() => {
-      inFlight = null;
-    });
+    inFlight = runSync()
+      .then((r) => {
+        recordSync(r);
+        return r;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
   }
   return inFlight;
 }
@@ -128,6 +155,11 @@ async function clearDirty(stamps: Stamp[]): Promise<void> {
       params: [s.id, s.updatedAt],
     })),
   );
+}
+
+/** Highest server change this device has applied. */
+export async function cursor(): Promise<number> {
+  return Number((await getMeta(CURSOR_KEY)) ?? 0);
 }
 
 /** Number of rows waiting to be pushed — drives the "unsynced" indicator. */
