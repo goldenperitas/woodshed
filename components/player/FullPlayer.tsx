@@ -1,7 +1,7 @@
 "use client";
 
 import ViewLink from "@/components/ViewLink";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronDown, Disc3, Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward, X,
 } from "lucide-react";
@@ -21,9 +21,33 @@ export default function FullPlayer({ onClose }: { onClose: () => void }) {
 
   const art = useMediaUrl(track?.artworkPath) ?? track?.artworkUrl ?? null;
 
+  // Closing plays the entrance in reverse before unmounting, so the screen
+  // drops back onto the bar it came from instead of blinking away.
+  const [closing, setClosing] = useState(false);
+  const afterExit = useRef<(() => void) | null>(null);
+  const closed = useRef(false);
+  const dismiss = useCallback((after?: () => void) => {
+    afterExit.current = after ?? null;
+    setClosing(true);
+  }, []);
+  const finishClose = useCallback(() => {
+    if (closed.current) return;
+    closed.current = true;
+    afterExit.current?.();
+    afterExit.current = null;
+    onClose();
+  }, [onClose]);
+  // A backgrounded tab freezes its animations — and a phone in a pocket is
+  // backgrounded — so the exit is also on a timer, not on animationend alone.
+  useEffect(() => {
+    if (!closing) return;
+    const id = setTimeout(finishClose, 400);
+    return () => clearTimeout(id);
+  }, [closing, finishClose]);
+
   // Escape closes; the page underneath must not scroll while this is up.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setClosing(true); };
     window.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -31,25 +55,29 @@ export default function FullPlayer({ onClose }: { onClose: () => void }) {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose]);
+  }, []);
 
-  // Nothing left to show once playback is stopped from in here.
-  useEffect(() => { if (!track) onClose(); }, [track, onClose]);
+  // Nothing left to show once playback is stopped from somewhere else.
+  useEffect(() => { if (!track && !closing) onClose(); }, [track, closing, onClose]);
 
   if (!track) return null;
 
   const pct = dur ? (pos / dur) * 100 : 0;
 
   return (
-    <div className="fp" style={{ ["--accent" as string]: track.accent ?? "var(--orange)" }}>
+    <div
+      className={`fp ${closing ? "closing" : ""}`}
+      style={{ ["--accent" as string]: track.accent ?? "var(--orange)" }}
+      onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) finishClose(); }}
+    >
       <div className="fp-glow" />
 
       <header className="fp-top">
-        <button className="fp-icon" onClick={onClose} aria-label="プレイヤーを閉じる">
+        <button className="fp-icon" onClick={() => dismiss()} aria-label="プレイヤーを閉じる">
           <ChevronDown size={26} strokeWidth={2} />
         </button>
         <span className="eyebrow">Now Playing</span>
-        <button className="fp-icon" onClick={stop} aria-label="停止">
+        <button className="fp-icon" onClick={() => dismiss(stop)} aria-label="停止">
           <X size={22} strokeWidth={2} />
         </button>
       </header>
@@ -63,7 +91,7 @@ export default function FullPlayer({ onClose }: { onClose: () => void }) {
 
       <div className="fp-meta">
         {track.href
-          ? <ViewLink href={track.href} onClick={onClose}><h1 className="display">{track.title}</h1></ViewLink>
+          ? <ViewLink href={track.href} onClick={() => dismiss()}><h1 className="display">{track.title}</h1></ViewLink>
           : <h1 className="display">{track.title}</h1>}
         {track.subtitle && <p className="mono">{track.subtitle}</p>}
       </div>

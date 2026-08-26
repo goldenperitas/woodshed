@@ -61,6 +61,7 @@ body.has-player { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   background: color-mix(in srgb, var(--ink-deep) 88%, transparent);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   border-top: 1px solid var(--line);
+  animation: nowbar-in .26s cubic-bezier(.2,.72,.24,1) both;
 }
 .nowbar-fill { position: absolute; top: 0; left: 0; height: 2px; background: var(--accent); transition: width .2s linear; }
 .nowbar-disc { color: var(--accent); flex: 0 0 auto; }
@@ -84,10 +85,23 @@ body.has-player { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   display: flex; flex-direction: column; align-items: center;
   padding: calc(10px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(22px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
   background: var(--ink-deep);
-  animation: fpin .22s cubic-bezier(.2,.7,.2,1) both;
+  animation: fp-in .24s cubic-bezier(.2,.72,.24,1) both;
   overflow: hidden;
 }
-@keyframes fpin { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+/* Rises out of the bar on open, sinks back into it on close. */
+.fp.closing { animation: fp-out .17s cubic-bezier(.4,0,.75,.4) both; }
+@keyframes fp-in {
+  from { opacity: 0; transform: translateY(26px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fp-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(26px) scale(.985); }
+}
+@keyframes nowbar-in { from { transform: translateY(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .fp, .fp.closing, .nowbar { animation-duration: .01ms; }
+}
 .fp-glow {
   position: absolute; inset: -30% 0 auto 0; height: 70vh; pointer-events: none;
   background: radial-gradient(60% 50% at 50% 50%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%);

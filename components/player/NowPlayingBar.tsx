@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Play, Pause, X, Disc3, ChevronUp } from "lucide-react";
 import { usePlayer } from "./PlayerProvider";
 import FullPlayer from "./FullPlayer";
@@ -11,6 +11,8 @@ import FullPlayer from "./FullPlayer";
 export default function NowPlayingBar() {
   const { track, playing, pos, dur, toggle, stop } = usePlayer();
   const [full, setFull] = useState(false);
+  // Stable, so the full player's exit timer isn't restarted on every tick.
+  const closeFull = useCallback(() => setFull(false), []);
 
   // Reserve space at the bottom so the fixed bar never hides page content.
   useEffect(() => {
@@ -41,7 +43,7 @@ export default function NowPlayingBar() {
           <X size={18} strokeWidth={2} />
         </button>
       </div>
-      {full && <FullPlayer onClose={() => setFull(false)} />}
+      {full && <FullPlayer onClose={closeFull} />}
     </>
   );
 }
