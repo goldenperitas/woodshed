@@ -12,6 +12,13 @@
 // usePathname() in step with it (see its "shallow routing" guidance), so
 // <Screen> can pick the view and the document simply stays alive.
 
+// The app restores what it wants restored itself (the shelf remembers its own
+// filters and offset). Left on "auto" the browser also has a go, which lands a
+// long tune page somewhere down its middle.
+if (typeof history !== "undefined" && "scrollRestoration" in history) {
+  history.scrollRestoration = "manual";
+}
+
 /** Moves to an in-app URL without reloading the document. */
 export function navigate(href: string): void {
   const here = window.location.pathname + window.location.search;

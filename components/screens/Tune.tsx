@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useLayoutEffect, useRef } from "react";
 import ViewLink from "@/components/ViewLink";
 import { ArrowLeft } from "lucide-react";
 import { accentFor } from "@/lib/sleeve";
@@ -19,12 +20,26 @@ import EditStandard from "@/components/EditStandard";
 import StatusQuickSet from "@/components/StatusQuickSet";
 import DeleteStandardButton from "@/components/DeleteStandardButton";
 
+// Screens are swapped without a document load, so nothing resets the scroll
+// on its own. Fires before paint, hence layout rather than a plain effect.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export default function Tune() {
   const id = useStandardId();
   const { data, loading, error } = useLocalQuery(
     async () => (id ? getStandard(id) : null),
     [id],
   );
+
+  // A tune always opens at the top — once, when its page first commits. Later
+  // re-queries (saving a memo, adding a take) must leave the reader where they
+  // are, which is why this is keyed on the tune rather than on every load.
+  const opened = useRef<string | null>(null);
+  useIsoLayoutEffect(() => {
+    if (!id || loading || opened.current === id) return;
+    opened.current = id;
+    window.scrollTo(0, 0);
+  }, [id, loading]);
 
   if (error) return <LocalError error={error} />;
   if (loading || !id) return <Booting label="めくっています" />;
