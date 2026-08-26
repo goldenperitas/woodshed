@@ -127,9 +127,9 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
         </div>
       ) : (
         <div className="grid">
-          {shown.map((it, i) => (
+          {shown.map((it) => (
             <ViewLink key={it.id} href={`/standards/${it.id}`}>
-              <Sleeve s={it} index={i} />
+              <Sleeve s={it} />
             </ViewLink>
           ))}
         </div>

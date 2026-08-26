@@ -16,11 +16,9 @@ type SleeveData = {
 
 // A tune rendered as a record jacket — an uploaded cover if present,
 // otherwise a deterministic Blue Note typographic sleeve.
-export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number }) {
+export default function Sleeve({ s }: { s: SleeveData }) {
   const accent = accentFor(s.title);
   const art = useMediaUrl(s.artworkPath);
-  // Staggered top-to-bottom reveal; capped so big collections stay snappy.
-  const delay = `${Math.min(index, 16) * 45}ms`;
 
   // Status strip: ◎ record glows in the tune's colour once a take exists,
   // then S1/S2/S3 as stars that fill + glow as each step is reached.
@@ -44,7 +42,7 @@ export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number
 
   if (art) {
     return (
-      <div className="jacket art" style={{ ["--ja" as string]: accent, animationDelay: delay }}>
+      <div className="jacket art" style={{ ["--ja" as string]: accent }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={art} alt={s.title} />
         {status}
@@ -61,7 +59,7 @@ export default function Sleeve({ s, index = 0 }: { s: SleeveData; index?: number
   return (
     <div
       className="jacket typo"
-      style={{ ["--ja" as string]: accent, animationDelay: delay }}
+      style={{ ["--ja" as string]: accent }}
     >
       <span className="bar" />
       {status}
