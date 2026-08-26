@@ -12,6 +12,7 @@ import {
 import { saveOffline, removeOffline, getOfflineBlob, listOfflineKeys, resolveMediaUrl, mediaUrl } from "@/lib/offline";
 import { useMediaUrl } from "@/lib/local/media";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import Scrubber from "@/components/player/Scrubber";
 
 const RATES = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 const R = 46;
@@ -102,7 +103,12 @@ export default function Woodshed({
   }, [take, src, standard, accent, artUrl, localRate, localLoop, player]);
 
   const togglePlay = () => { if (isThis) player.toggle(); else loadThis({ autoplay: true }); };
-  const seek = (t: number) => { if (isThis) player.seek(t); else loadThis({ autoplay: true }); };
+  // Dragging a bar for a take that is not loaded must not reload it on every
+  // step of the drag — starting it once, on release, is what was meant.
+  const seek = (t: number, final = true) => {
+    if (isThis) player.seek(t);
+    else if (final) loadThis({ autoplay: true });
+  };
 
   const playRegion = (r: Region) => {
     const L = { n: r.label || "loop", s: r.startSec, e: r.endSec };
@@ -211,13 +217,12 @@ export default function Woodshed({
             <button className="play" onClick={togglePlay} aria-label={playing ? "一時停止" : "再生"}>
               {playing ? <Pause size={22} fill="currentColor" strokeWidth={0} /> : <Play size={22} fill="currentColor" strokeWidth={0} style={{ marginLeft: 2 }} />}
             </button>
-            <div className="pbar-wrap">
-              <div className="pbar" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * (dur || 0)); }}>
-                {localLoop && dur ? <div className="ploop" style={{ left: `${(localLoop.s / dur) * 100}%`, width: `${((localLoop.e - localLoop.s) / dur) * 100}%` }} /> : null}
-                <div className="pfill" style={{ width: `${dur ? (pos / dur) * 100 : 0}%` }} />
-              </div>
-              <div className="ptime"><span>{fmtTime(pos)}</span><span>{fmtTime(dur)}</span></div>
-            </div>
+            <Scrubber
+              className="pbar-wrap"
+              pos={pos} dur={dur} times
+              loop={localLoop ? { s: localLoop.s, e: localLoop.e } : null}
+              onSeek={seek}
+            />
           </div>
 
           {/* speed */}

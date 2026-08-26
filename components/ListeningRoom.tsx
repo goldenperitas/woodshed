@@ -10,6 +10,7 @@ import { fmtTime } from "@/lib/format";
 import { resolveMediaUrl } from "@/lib/offline";
 import { useMediaUrl } from "@/lib/local/media";
 import { usePlayer, type PlayerTrack } from "@/components/player/PlayerProvider";
+import Scrubber from "@/components/player/Scrubber";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -158,12 +159,12 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
               <button className="play" onClick={bigPlay} aria-label={playing ? "一時停止" : "再生"}>
                 {playing ? <Pause size={22} fill="currentColor" strokeWidth={0} /> : <Play size={22} fill="currentColor" strokeWidth={0} style={{ marginLeft: 2 }} />}
               </button>
-              <div className="pbar-wrap">
-                <div className="pbar" onClick={(e) => { if (idle) return; const r = e.currentTarget.getBoundingClientRect(); player.seek(((e.clientX - r.left) / r.width) * (dur || 0)); }}>
-                  <div className="pfill" style={{ width: `${dur ? (pos / dur) * 100 : 0}%` }} />
-                </div>
-                <div className="ptime"><span>{fmtTime(pos)}</span><span>{fmtTime(dur)}</span></div>
-              </div>
+              <Scrubber
+                className="pbar-wrap"
+                pos={pos} dur={dur} times
+                disabled={idle}
+                onSeek={(t) => player.seek(t)}
+              />
               <button className="btn" onClick={() => setQueue(shuffle(filtered))} title="シャッフル" aria-label="シャッフル"><Shuffle size={16} strokeWidth={2} /></button>
             </div>
 

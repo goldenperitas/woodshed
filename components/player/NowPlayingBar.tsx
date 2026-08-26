@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Play, Pause, X, Disc3, ChevronUp } from "lucide-react";
 import { usePlayer } from "./PlayerProvider";
 import FullPlayer from "./FullPlayer";
+import Scrubber from "./Scrubber";
 
 // Global "now playing" bar. Visible on every page whenever a track is loaded,
 // so playback can be seen and stopped from anywhere — and tapped open into the
 // full-screen transport.
 export default function NowPlayingBar() {
-  const { track, playing, pos, dur, toggle, stop } = usePlayer();
+  const { track, playing, pos, dur, toggle, stop, seek } = usePlayer();
   const [full, setFull] = useState(false);
   // Stable, so the full player's exit timer isn't restarted on every tick.
   const closeFull = useCallback(() => setFull(false), []);
@@ -22,12 +23,17 @@ export default function NowPlayingBar() {
 
   if (!track) return null;
 
-  const pct = dur ? (pos / dur) * 100 : 0;
-
   return (
     <>
       <div className="nowbar" style={{ ["--accent" as string]: track.accent ?? "var(--orange)" }}>
-        <div className="nowbar-fill" style={{ width: `${pct}%` }} />
+        <Scrubber
+          className="nowbar-scrub"
+          variant="hair"
+          tapToSeek={false}
+          onTap={() => setFull(true)}
+          pos={pos} dur={dur}
+          onSeek={(t) => seek(t)}
+        />
         <button className="nowbar-open" onClick={() => setFull(true)} aria-label="プレイヤーを全画面で開く">
           <Disc3 className={`nowbar-disc ${playing ? "spin" : ""}`} size={26} strokeWidth={1.75} />
           <span className="nowbar-meta">

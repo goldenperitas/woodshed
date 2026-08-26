@@ -5,8 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronDown, Disc3, Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward, X,
 } from "lucide-react";
-import { fmtTime } from "@/lib/format";
 import { useMediaUrl } from "@/lib/local/media";
+import Scrubber from "./Scrubber";
 import { usePlayer } from "./PlayerProvider";
 
 const RATES = [0.5, 1] as const;
@@ -62,8 +62,6 @@ export default function FullPlayer({ onClose }: { onClose: () => void }) {
 
   if (!track) return null;
 
-  const pct = dur ? (pos / dur) * 100 : 0;
-
   return (
     <div
       className={`fp ${closing ? "closing" : ""}`}
@@ -96,16 +94,7 @@ export default function FullPlayer({ onClose }: { onClose: () => void }) {
         {track.subtitle && <p className="mono">{track.subtitle}</p>}
       </div>
 
-      <div
-        className="fp-seek"
-        onClick={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          if (dur) seek(((e.clientX - r.left) / r.width) * dur);
-        }}
-      >
-        <div className="bar"><div className="fill" style={{ width: `${pct}%` }} /></div>
-        <div className="times mono"><span>{fmtTime(pos)}</span><span>{fmtTime(dur)}</span></div>
-      </div>
+      <Scrubber className="fp-seek" pos={pos} dur={dur} times onSeek={(t) => seek(t)} />
 
       <div className="fp-transport">
         <button className="fp-t" onClick={prev} disabled={!hasQueue} aria-label="前の曲">

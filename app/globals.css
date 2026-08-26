@@ -53,6 +53,46 @@ body {
 .ptr-bar.spinning .ptr-spin { border-top-color: var(--accent); animation: ptrspin .6s linear infinite; }
 @keyframes ptrspin { to { transform: rotate(360deg); } }
 
+/* ---- scrubber (shared seek bar) ----
+   A 5px line is not a touch target, so the bar carries a tall transparent
+   grab area and a thumb, and dragging away from it scrubs in finer steps. */
+.scrub {
+  position: relative; padding: 13px 0; cursor: pointer;
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.scrub:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.scrub-track { position: relative; height: 6px; border-radius: 3px; background: #241f17; overflow: hidden; }
+.scrub-loop { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 34%, transparent); }
+.scrub-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
+.scrub-thumb {
+  position: absolute; top: 50%; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--paper); transform: translate(-50%, -50%); pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.55);
+  transition: width .12s ease, height .12s ease;
+}
+.scrub.dragging .scrub-thumb { width: 22px; height: 22px; }
+.scrub.dragging .scrub-track { height: 8px; }
+.scrub-rate {
+  position: absolute; left: 50%; top: -7px; transform: translateX(-50%);
+  font-size: 10px; letter-spacing: .1em; color: var(--accent); pointer-events: none;
+}
+.scrub.disabled { opacity: .45; pointer-events: none; }
+.scrub-times {
+  display: flex; justify-content: space-between; margin-top: 2px;
+  font-family: "SpaceMono", monospace; font-size: 11px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.scrub-times .on { color: var(--paper); }
+
+/* The mini bar: the line rides its top edge, the grab area reaches down into
+   the bar, and a tap (rather than a drag) still opens the full player. */
+.scrub.hair { padding: 3px 0 15px; }
+.scrub.hair .scrub-track { height: 2.5px; border-radius: 0; background: rgba(255,255,255,.07); }
+.scrub.hair .scrub-thumb { top: 4px; width: 0; height: 0; box-shadow: none; }
+.scrub.hair.dragging .scrub-track { height: 5px; }
+.scrub.hair.dragging .scrub-thumb { top: 5px; width: 15px; height: 15px; box-shadow: 0 2px 8px rgba(0,0,0,.55); }
+.nowbar-scrub { position: absolute; left: 0; right: 0; top: 0; z-index: 2; }
+
 /* ---- app header (fixed on every screen) ---- */
 .hdr {
   position: fixed; top: 0; left: 0; right: 0; z-index: 140;
@@ -106,7 +146,6 @@ body.has-player { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--line);
   animation: nowbar-in .26s cubic-bezier(.2,.72,.24,1) both;
 }
-.nowbar-fill { position: absolute; top: 0; left: 0; height: 2px; background: var(--accent); transition: width .2s linear; }
 .nowbar-disc { color: var(--accent); flex: 0 0 auto; }
 .nowbar-disc.spin { animation: spin 1.8s linear infinite; }
 .nowbar-meta .t { font-weight: 700; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--paper); }
@@ -178,13 +217,7 @@ body.has-player { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.fp-seek { flex: 0 0 auto; margin-top: 22px; padding: 8px 0; cursor: pointer; }
-.fp-seek .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
-.fp-seek .fill { height: 100%; background: var(--accent); transition: width .2s linear; }
-.fp-seek .times {
-  display: flex; justify-content: space-between; margin-top: 8px;
-  font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
-}
+.fp-seek { flex: 0 0 auto; margin-top: 16px; }
 
 .fp-transport {
   flex: 0 0 auto; margin-top: 10px;
@@ -433,10 +466,6 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
 .transport { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
 .play { width: 56px; height: 56px; flex: 0 0 auto; border-radius: 50%; border: 0; background: var(--accent); color: #160b03; font-size: 19px; cursor: pointer; display: grid; place-items: center; box-shadow: 0 10px 24px -10px var(--accent); }
 .pbar-wrap { flex: 1; }
-.pbar { position: relative; height: 5px; border-radius: 3px; background: #241f17; overflow: hidden; cursor: pointer; }
-.ploop { position: absolute; top: 0; bottom: 0; background: rgba(225,84,27,.35); }
-.pfill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); width: 0; }
-.ptime { display: flex; justify-content: space-between; font-family: "SpaceMono", monospace; font-size: 11px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
 .chips { display: flex; flex-wrap: wrap; gap: 7px; }
 
 .sec { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 16px; }
