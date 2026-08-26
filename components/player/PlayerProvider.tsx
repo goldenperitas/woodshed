@@ -19,6 +19,13 @@ export type PlayerTrack = {
   href?: string; // where the mini-bar links back to
 };
 
+/**
+ * One entry of the playing queue. The src is resolved lazily (offline blob or
+ * server path) so a long queue costs nothing until a track is actually needed.
+ * `resolve` returns null when the bytes live on some other device.
+ */
+export type QueueItem = { id: string; resolve: () => Promise<PlayerTrack | null> };
+
 type Loop = { s: number; e: number } | null;
 
 type Ctx = {
@@ -28,7 +35,8 @@ type Ctx = {
   dur: number;
   rate: number;
   loop: Loop;
-  endedSignal: number; // bumps each time a track plays to its end (for queues)
+  /** True when the current track sits in a queue with somewhere to skip to. */
+  hasQueue: boolean;
   isCurrent: (id: string) => boolean;
   load: (t: PlayerTrack, opts?: { autoplay?: boolean; loop?: Loop; rate?: number; repeat?: boolean }) => void;
   toggle: () => void;
@@ -36,6 +44,11 @@ type Ctx = {
   pause: () => void;
   stop: () => void;
   seek: (t: number) => void;
+  /** Seek relative to where playback is right now (podcast-style ±10s). */
+  nudge: (delta: number) => void;
+  next: () => void;
+  prev: () => void;
+  setQueue: (items: QueueItem[]) => void;
   setRate: (r: number) => void;
   setLoop: (l: Loop) => void;
   setRepeat: (repeat: boolean) => void; // native whole-track loop
@@ -60,7 +73,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
   const [dur, setDur] = useState(0);
   const [rate, setRateState] = useState(1);
   const [loop, setLoopState] = useState<Loop>(null);
-  const [endedSignal, setEndedSignal] = useState(0);
+  const [queue, setQueueState] = useState<QueueItem[]>([]);
 
   // Keep playbackRate + pitch preservation in sync.
   useEffect(() => {
@@ -104,17 +117,56 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     setPos(0);
     setDur(0);
     setLoopState(null);
+    setQueueState([]);
   }, []);
   const seek = useCallback((t: number) => {
     const a = audioRef.current;
     if (!a) return;
     a.currentTime = t;
-    setPos(t);
+    setPos(a.currentTime);
+  }, []);
+  const nudge = useCallback((delta: number) => {
+    const a = audioRef.current;
+    if (!a) return;
+    const end = Number.isFinite(a.duration) ? a.duration : Infinity;
+    a.currentTime = Math.min(Math.max(0, a.currentTime + delta), end);
+    setPos(a.currentTime);
   }, []);
   const setRate = useCallback((r: number) => setRateState(r), []);
   const setLoop = useCallback((l: Loop) => setLoopState(l), []);
   const setRepeat = useCallback((r: boolean) => { const a = audioRef.current; if (a) a.loop = r; }, []);
   const isCurrent = useCallback((id: string) => track?.id === id, [track]);
+  const setQueue = useCallback((items: QueueItem[]) => setQueueState(items), []);
+
+  // ---- queue skipping ----
+  // Read through refs so the handlers stay stable enough for the Media Session
+  // (lock screen / car) bindings, which are registered once.
+  const queueRef = useRef(queue);
+  const trackRef = useRef(track);
+  const posRef = useRef(pos);
+  useEffect(() => { queueRef.current = queue; trackRef.current = track; posRef.current = pos; });
+
+  const skip = useCallback(async (delta: 1 | -1) => {
+    const q = queueRef.current;
+    const cur = trackRef.current?.id;
+    const i = cur ? q.findIndex((x) => x.id === cur) : -1;
+    if (i < 0 || q.length < 2) return;
+    // Takes whose bytes live on another device are stepped over, not stalled on.
+    for (let n = 1; n <= q.length; n++) {
+      const item = q[(((i + delta * n) % q.length) + q.length) % q.length];
+      const t = await item.resolve();
+      if (t) { load(t, { autoplay: true }); return; }
+    }
+  }, [load]);
+
+  const next = useCallback(() => { void skip(1); }, [skip]);
+  // Podcast convention: a few seconds in, "previous" means "start this over".
+  const prev = useCallback(() => {
+    if (posRef.current > 3) { seek(0); play(); return; }
+    void skip(-1);
+  }, [skip, seek, play]);
+
+  const hasQueue = queue.length > 1 && !!track && queue.some((x) => x.id === track.id);
 
   const onTime = () => {
     const a = audioRef.current;
@@ -175,15 +227,18 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     set("seekto", (d) => { const a = el(); if (a && d.seekTime != null) { a.currentTime = d.seekTime; setPos(a.currentTime); } });
     set("seekbackward", (d) => { const a = el(); if (a) { a.currentTime = Math.max(0, a.currentTime - (d.seekOffset || 10)); setPos(a.currentTime); } });
     set("seekforward", (d) => { const a = el(); if (a) { a.currentTime = Math.min(a.duration || Infinity, a.currentTime + (d.seekOffset || 10)); setPos(a.currentTime); } });
+    set("nexttrack", () => next());
+    set("previoustrack", () => prev());
     return () => {
-      (["play", "pause", "seekto", "seekbackward", "seekforward"] as MediaSessionAction[])
+      (["play", "pause", "seekto", "seekbackward", "seekforward", "nexttrack", "previoustrack"] as MediaSessionAction[])
         .forEach((a) => { try { ms.setActionHandler(a, null); } catch { /* ignore */ } });
     };
-  }, []);
+  }, [next, prev]);
 
   const value: Ctx = {
-    track, playing, pos, dur, rate, loop, endedSignal,
-    isCurrent, load, toggle, play, pause, stop, seek, setRate, setLoop, setRepeat,
+    track, playing, pos, dur, rate, loop, hasQueue,
+    isCurrent, load, toggle, play, pause, stop, seek, nudge, next, prev,
+    setQueue, setRate, setLoop, setRepeat,
   };
 
   return (
@@ -196,7 +251,7 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
         onTimeUpdate={onTime}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setEndedSignal((n) => n + 1); }}
+        onEnded={() => { setPlaying(false); void skip(1); }}
       />
       <NowPlayingBar />
     </PlayerCtx.Provider>

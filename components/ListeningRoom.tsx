@@ -1,7 +1,7 @@
 "use client";
 
 import ViewLink from "@/components/ViewLink";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Play, Pause, Shuffle, ChevronDown } from "lucide-react";
 import type { ListeningTake } from "@/lib/local/queries";
 import { STATUS } from "@/lib/constants";
@@ -9,7 +9,7 @@ import { accentFor } from "@/lib/sleeve";
 import { fmtTime } from "@/lib/format";
 import { resolveMediaUrl } from "@/lib/offline";
 import { useMediaUrl } from "@/lib/local/media";
-import { usePlayer } from "@/components/player/PlayerProvider";
+import { usePlayer, type PlayerTrack } from "@/components/player/PlayerProvider";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -26,6 +26,22 @@ async function resolveSrc(filePath: string): Promise<string | null> {
 
 const takeName = (t: ListeningTake) =>
   [t.performer || t.originalName || "無名の録音", t.year].filter(Boolean).join(" · ");
+
+// Take -> track, with the src resolved on demand. Kept out of the component so
+// the queue handed to the player outlives this page (playback keeps going, and
+// keeps skipping, after navigating away).
+async function trackFor(t: ListeningTake, pre?: string | null): Promise<PlayerTrack | null> {
+  const src = pre ?? (await resolveSrc(t.filePath));
+  if (!src) return null;
+  return {
+    id: t.filePath, src,
+    title: t.title,
+    subtitle: takeName(t),
+    accent: accentFor(t.title),
+    artworkPath: t.artworkPath,
+    href: `/standards/${t.standardId}`,
+  };
+}
 
 export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
   const player = usePlayer();
@@ -61,22 +77,14 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
   const playItem = useCallback(async (item: ListeningTake, pre?: string | null) => {
     // A take's row syncs to every device; its bytes do not. Say so rather
     // than handing the player a src it cannot load.
-    const src = pre ?? (await resolveSrc(item.filePath));
-    if (!src) {
+    const t = await trackFor(item, pre);
+    if (!t) {
       setNotice(`「${item.title}」の音源はこの端末にありません`);
       return;
     }
     setNotice(null);
     player.load(
-      {
-        id: item.filePath, src,
-        title: item.title,
-        subtitle: takeName(item),
-        accent: accentFor(item.title),
-        artworkPath: item.artworkPath,
-        artworkUrl: item.artworkPath === display?.artworkPath ? displayArt : null,
-        href: `/standards/${item.standardId}`,
-      },
+      { ...t, artworkUrl: item.artworkPath === display?.artworkPath ? displayArt : null },
       { autoplay: true },
     );
   }, [player, display?.artworkPath, displayArt]);
@@ -92,18 +100,12 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
     return () => { alive = false; };
   }, [topId]);
 
-  // Continuous playback: when a queue track ends, play the next one.
-  const queueRef = useRef(queue); queueRef.current = queue;
-  const trackIdRef = useRef(player.track?.id); trackIdRef.current = player.track?.id;
-  const playItemRef = useRef(playItem); playItemRef.current = playItem;
+  // Hand the queue to the player, which plays it through and serves the
+  // prev/next buttons — in the full-screen player and on the lock screen.
+  const registerQueue = player.setQueue;
   useEffect(() => {
-    if (!player.endedSignal) return;
-    const endedId = trackIdRef.current;
-    const q = queueRef.current;
-    const i = endedId ? q.findIndex((t) => t.filePath === endedId) : -1;
-    if (i >= 0 && q.length) playItemRef.current(q[(i + 1) % q.length]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player.endedSignal]);
+    registerQueue(queue.map((t) => ({ id: t.filePath, resolve: () => trackFor(t) })));
+  }, [queue, registerQueue]);
 
   const playing = !idle && player.playing;
   const pos = idle ? 0 : player.pos;
