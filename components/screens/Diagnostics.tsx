@@ -8,8 +8,7 @@
 // Deliberately plain, and reachable offline (the service worker precaches it).
 
 import { useCallback, useEffect, useState } from "react";
-import ViewLink from "@/components/ViewLink";
-import { ArrowLeft } from "lucide-react";
+import AppHeader, { BackArrow } from "@/components/AppHeader";
 import { rawAll, ready, getMeta, resetLocalDatabase } from "@/lib/local/db";
 import { sync, lastSync, pendingCount } from "@/lib/local/sync";
 import { SYNC_TABLES } from "@/lib/sync/schema";
@@ -144,10 +143,8 @@ export default function Diagnostics() {
 
   return (
     <div className="wrap pb-8">
-      <div className="mb-4 flex items-center gap-3">
-        <ViewLink href="/" className="back"><ArrowLeft size={15} strokeWidth={2} /> 戻る</ViewLink>
-        <h1 className="text-lg font-bold">診断</h1>
-      </div>
+      <AppHeader left={<BackArrow />} title={<span className="eyebrow">Diagnostics</span>} />
+      <h1 className="text-lg font-bold mb-4">診断</h1>
 
       <div className="card p-3" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         <button className="btn" onClick={refresh}>再読み込み</button>

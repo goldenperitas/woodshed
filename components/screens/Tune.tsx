@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import ViewLink from "@/components/ViewLink";
+import AppHeader, { BackArrow } from "@/components/AppHeader";
 import { ArrowLeft } from "lucide-react";
 import { accentFor } from "@/lib/sleeve";
 import { saveChords, saveLyrics } from "@/lib/local/mutations";
@@ -71,9 +72,11 @@ export default function Tune() {
   return (
     <div className="room-ground" style={{ ["--accent" as string]: accent } as React.CSSProperties}>
       <div className="room">
-        <div className="topbar">
-          <ViewLink href="/" className="back"><ArrowLeft size={15} strokeWidth={2} /> 棚に戻る</ViewLink>
-        </div>
+        <AppHeader
+          left={<BackArrow label="棚に戻る" />}
+          title={<span className="hdr-title">{std.title}</span>}
+          revealAfter=".meta h1"
+        />
 
         <Woodshed standard={std} recordings={recordings} regions={regions} />
 

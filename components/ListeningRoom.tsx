@@ -1,8 +1,8 @@
 "use client";
 
-import ViewLink from "@/components/ViewLink";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Play, Pause, Shuffle, ChevronDown } from "lucide-react";
+import { Play, Pause, Shuffle, ChevronDown } from "lucide-react";
+import AppHeader, { BackArrow } from "@/components/AppHeader";
 import type { ListeningTake } from "@/lib/local/queries";
 import { STATUS } from "@/lib/constants";
 import { accentFor } from "@/lib/sleeve";
@@ -121,10 +121,7 @@ export default function ListeningRoom({ takes }: { takes: ListeningTake[] }) {
   return (
     <div className="room-ground" style={{ ["--accent" as string]: accent } as React.CSSProperties}>
       <div className="room">
-        <div className="topbar">
-          <ViewLink href="/" className="back"><ArrowLeft size={15} strokeWidth={2} /> 棚に戻る</ViewLink>
-          <span className="eyebrow">Listening Room</span>
-        </div>
+        <AppHeader left={<BackArrow label="棚に戻る" />} title={<span className="eyebrow">Listening Room</span>} />
 
         {takes.length === 0 ? (
           <div className="empty" style={{ marginTop: 40 }}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import ViewLink from "@/components/ViewLink";
+import AppHeader, { BackArrow } from "@/components/AppHeader";
 import { Play, Pause, Dices } from "lucide-react";
 import type { DrillItem } from "@/lib/local/queries";
 import { accentFor } from "@/lib/sleeve";
@@ -130,13 +130,12 @@ export default function DrillRoom({
   return (
     <div className="room-ground" style={{ ["--accent" as string]: accent }}>
       <div className="room" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-        <div className="topbar">
-          <div className="chips">
-            <button className={`chip ${mode === "name" ? "on" : ""}`} onClick={() => switchMode("name")}>曲名 → 情報</button>
-            <button className={`chip ${mode === "audio" ? "on" : ""}`} onClick={() => switchMode("audio")}>音 → 曲名</button>
-            <button className={`chip ${mode === "session" ? "on" : ""}`} onClick={() => switchMode("session")}>セッション</button>
-          </div>
-          <ViewLink href="/" className="back">やめる</ViewLink>
+        <AppHeader left={<BackArrow label="ドリルをやめる" />} title={<span className="eyebrow">Drill</span>} />
+
+        <div className="chips">
+          <button className={`chip ${mode === "name" ? "on" : ""}`} onClick={() => switchMode("name")}>曲名 → 情報</button>
+          <button className={`chip ${mode === "audio" ? "on" : ""}`} onClick={() => switchMode("audio")}>音 → 曲名</button>
+          <button className={`chip ${mode === "session" ? "on" : ""}`} onClick={() => switchMode("session")}>セッション</button>
         </div>
 
         {allGroups.length > 0 && (

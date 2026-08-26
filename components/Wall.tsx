@@ -4,6 +4,7 @@ import ViewLink from "@/components/ViewLink";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Target, Library, Plus, Search, Radio, X } from "lucide-react";
 import type { StandardListItem } from "@/lib/local/queries";
+import AppHeader from "./AppHeader";
 import Sleeve from "./Sleeve";
 import RandomQuote from "./RandomQuote";
 
@@ -89,17 +90,18 @@ export default function Wall({ items }: { items: StandardListItem[] }) {
 
   return (
     <div className="wrap">
-      <header className="wall-head">
-        <div className="wall-top">
-          <div className="eyebrow">Woodshed</div>
+      <AppHeader
+        left={<span className="eyebrow">Woodshed</span>}
+        right={
           <div className="wall-actions">
             <ViewLink href="/listening" className="btn" title="Listening Room" aria-label="Listening Room"><Radio size={18} strokeWidth={2} /></ViewLink>
             <ViewLink href="/drill" className="btn" title="ドリル" aria-label="ドリル"><Target size={18} strokeWidth={2} /></ViewLink>
             <ViewLink href="/groups" className="btn" title="グループ" aria-label="グループ"><Library size={18} strokeWidth={2} /></ViewLink>
             <ViewLink href="/standards/new" className="btn btn-accent" title="曲を追加" aria-label="曲を追加"><Plus size={18} strokeWidth={2.5} /></ViewLink>
           </div>
-        </div>
-
+        }
+      />
+      <header className="wall-head">
         <RandomQuote />
         <div className="count"><b>{shown.length}</b> 曲{allOn && !q.trim() ? "" : ` / ${items.length}`}</div>
 

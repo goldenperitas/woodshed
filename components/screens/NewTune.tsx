@@ -1,8 +1,7 @@
 "use client";
 
-import ViewLink from "@/components/ViewLink";
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import AppHeader, { BackArrow } from "@/components/AppHeader";
 import { createStandard } from "@/lib/local/mutations";
 import StatusPicker from "@/components/StatusPicker";
 import { navigate } from "@/lib/nav";
@@ -20,12 +19,8 @@ export default function NewTune() {
 
   return (
     <div className="wrap pb-8">
-      <div className="mb-4 flex items-center gap-3">
-        <ViewLink href="/" className="back">
-          <ArrowLeft size={15} strokeWidth={2} /> 戻る
-        </ViewLink>
-        <h1 className="text-lg font-bold">曲を追加</h1>
-      </div>
+      <AppHeader left={<BackArrow />} title={<span className="eyebrow">New Tune</span>} />
+      <h1 className="text-lg font-bold mb-4">曲を追加</h1>
 
       <form action={submit} className="card flex flex-col gap-3 p-4">
         <div>
