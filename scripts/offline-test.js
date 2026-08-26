@@ -66,8 +66,9 @@ function probe(page) {
     // error message anywhere.
     if (/^\d+:[A-Z]\[/m.test(t) || /"ViewportBoundary"/.test(t)) return "RAW_PAYLOAD";
     // Sections every tune page renders. Not TAKES — a tune with no recordings
-    // shows a placeholder instead of that heading.
-    if (!/棚に戻る/.test(t) || !/コード解釈/.test(t) || !/ステータス/.test(t)) return "NOT_A_TUNE_PAGE";
+    // shows a placeholder instead of that heading. The back control is an
+    // unlabelled arrow now, so it is no longer something to read for.
+    if (!/音源を追加/.test(t) || !/コード解釈/.test(t) || !/ステータス/.test(t)) return "NOT_A_TUNE_PAGE";
     return t.split("\n").map((l) => l.trim()).filter(Boolean)[1] ?? "?";
   };
 
