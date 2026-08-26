@@ -117,7 +117,9 @@ export default function PlayerProvider({ children }: { children: React.ReactNode
     setPos(0);
     setDur(0);
     setLoopState(null);
-    setQueueState([]);
+    // The queue is left alone: the page that handed it over only re-registers
+    // when its own list changes, so dropping it here would leave the next
+    // track playing with no way to skip.
   }, []);
   const seek = useCallback((t: number) => {
     const a = audioRef.current;
