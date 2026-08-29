@@ -93,6 +93,19 @@ CREATE TABLE IF NOT EXISTS notes (
   dirty INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS sheets (
+  id TEXT PRIMARY KEY,
+  standard_id TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  original_name TEXT,
+  kind TEXT NOT NULL DEFAULT 'image',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  dirty INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS groups (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -133,6 +146,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_sg_pair ON standard_groups (standard_id, g
 CREATE INDEX IF NOT EXISTS idx_rec_std ON recordings (standard_id);
 CREATE INDEX IF NOT EXISTS idx_reg_rec ON regions (recording_id);
 CREATE INDEX IF NOT EXISTS idx_note_std ON notes (standard_id);
+CREATE INDEX IF NOT EXISTS idx_sheet_std ON sheets (standard_id);
 CREATE INDEX IF NOT EXISTS idx_rl_std ON review_log (standard_id);
 
 -- Local-only bookkeeping; never synced.

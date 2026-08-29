@@ -12,10 +12,12 @@ import { SYNC_TABLES, syncColumns } from "@/lib/sync/protocol";
 const DATA_DIR = path.join(process.cwd(), "data");
 export const AUDIO_DIR = path.join(process.cwd(), "public", "audio");
 export const ART_DIR = path.join(process.cwd(), "public", "art");
+export const SHEET_DIR = path.join(process.cwd(), "public", "sheets");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(AUDIO_DIR, { recursive: true });
 fs.mkdirSync(ART_DIR, { recursive: true });
+fs.mkdirSync(SHEET_DIR, { recursive: true });
 
 export const sqlite = new Database(path.join(DATA_DIR, "woodshed.db"));
 sqlite.pragma("busy_timeout = 10000");
@@ -50,6 +52,13 @@ CREATE TABLE IF NOT EXISTS regions (
 CREATE TABLE IF NOT EXISTS notes (
   id TEXT PRIMARY KEY, standard_id TEXT NOT NULL, body TEXT NOT NULL, tag TEXT,
   recording_id TEXT, timestamp_sec REAL,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  deleted_at INTEGER, server_seq INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS sheets (
+  id TEXT PRIMARY KEY, standard_id TEXT NOT NULL, file_path TEXT NOT NULL,
+  original_name TEXT, kind TEXT NOT NULL DEFAULT 'image',
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
   deleted_at INTEGER, server_seq INTEGER NOT NULL DEFAULT 0
 );

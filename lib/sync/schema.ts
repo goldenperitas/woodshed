@@ -81,6 +81,23 @@ export const notes = sqliteTable(
   (t) => [index("idx_note_std").on(t.standardId)],
 );
 
+// Lead sheets — the pages of the Real Book (or anything else) a tune is read
+// from. Several per tune, in reading order. Like takes, only the path syncs;
+// the file itself lives on the Mac with copies on the devices that fetched it.
+export const sheets = sqliteTable(
+  "sheets",
+  {
+    id: text("id").primaryKey(),
+    standardId: text("standard_id").notNull(),
+    filePath: text("file_path").notNull(), // "sheet/xxx.jpg" | "sheet/xxx.pdf"
+    originalName: text("original_name"),
+    kind: text("kind").notNull().default("image"), // image | pdf
+    sortOrder: integer("sort_order").notNull().default(0),
+    ...syncCols,
+  },
+  (t) => [index("idx_sheet_std").on(t.standardId)],
+);
+
 export const groups = sqliteTable("groups", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -120,6 +137,7 @@ export type Standard = typeof standards.$inferSelect;
 export type Recording = typeof recordings.$inferSelect;
 export type Region = typeof regions.$inferSelect;
 export type Note = typeof notes.$inferSelect;
+export type Sheet = typeof sheets.$inferSelect;
 export type Group = typeof groups.$inferSelect;
 export type ReviewLogRow = typeof reviewLog.$inferSelect;
 
@@ -131,6 +149,7 @@ export const SYNC_TABLES = [
   "recordings",
   "regions",
   "notes",
+  "sheets",
   "standard_groups",
   "review_log",
 ] as const;

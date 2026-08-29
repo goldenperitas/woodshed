@@ -15,6 +15,7 @@ import AudioUploader from "@/components/AudioUploader";
 import ArtworkUploader from "@/components/ArtworkUploader";
 import AutoSaveText from "@/components/AutoSaveText";
 import NotesSection from "@/components/NotesSection";
+import SheetsSection from "@/components/SheetsSection";
 import ReviewLog from "@/components/ReviewLog";
 import GroupsSection from "@/components/GroupsSection";
 import EditStandard from "@/components/EditStandard";
@@ -66,7 +67,7 @@ export default function Tune() {
     );
   }
 
-  const { standard: std, recordings, regions, notes, allGroups, memberGroupIds, reviews, now } = data;
+  const { standard: std, recordings, regions, notes, sheets: sheetPages, allGroups, memberGroupIds, reviews, now } = data;
   const accent = accentFor(std.title);
 
   return (
@@ -82,6 +83,10 @@ export default function Tune() {
 
         <section className="sec"><h4>音源を追加</h4>
           <AudioUploader standardId={std.id} />
+        </section>
+
+        <section className="sec"><h4>リードシート</h4>
+          <SheetsSection standardId={std.id} sheets={sheetPages} />
         </section>
 
         <section className="sec"><h4>コード解釈</h4>

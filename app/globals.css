@@ -93,6 +93,52 @@ body {
 .scrub.hair.dragging .scrub-thumb { top: 5px; width: 15px; height: 15px; box-shadow: 0 2px 8px rgba(0,0,0,.55); }
 .nowbar-scrub { position: absolute; left: 0; right: 0; top: 0; z-index: 2; }
 
+/* ---- lead sheets (tune page) ---- */
+.sheets { display: flex; gap: 10px; flex-wrap: wrap; }
+.sheet-card { width: 104px; }
+.sheet-open {
+  position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; padding: 0;
+  border: 1px solid var(--line); border-radius: 4px; overflow: hidden;
+  background: var(--paper); cursor: pointer;
+  box-shadow: 0 10px 22px -16px rgba(0,0,0,.8);
+  transition: transform .12s ease;
+}
+.sheet-open:active { transform: scale(.97); }
+.sheet-open img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.sheet-pdf {
+  width: 100%; height: 100%; display: grid; place-content: center; gap: 4px; justify-items: center;
+  background: var(--ink2); color: var(--muted-2);
+  font-family: "SpaceMono", monospace; font-size: 10px; letter-spacing: .14em;
+}
+.sheet-missing {
+  width: 100%; height: 100%; display: grid; place-content: center; padding: 8px;
+  background: var(--ink2); color: var(--muted); font-size: 10px; text-align: center; line-height: 1.5;
+}
+.sheet-n {
+  position: absolute; left: 0; bottom: 0; padding: 3px 7px;
+  background: rgba(0,0,0,.62); color: var(--paper); font-size: 10px; letter-spacing: .08em;
+}
+.sheet-tools { display: flex; gap: 4px; margin-top: 6px; }
+.sheet-tools .chip { padding: 5px 7px; }
+.sheet-tools .chip:disabled { opacity: .35; }
+
+/* the reader */
+.sv {
+  position: fixed; inset: 0; z-index: 320; display: flex; flex-direction: column;
+  background: var(--ink-deep);
+  padding: calc(6px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+  animation: fp-in .2s cubic-bezier(.2,.72,.24,1) both;
+}
+.sv-top { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sv-page { flex: 1 1 auto; min-height: 0; overflow: auto; display: grid; place-items: center; }
+.sv-page img { max-width: 100%; max-height: 100%; object-fit: contain; background: var(--paper); cursor: zoom-in; }
+/* Zoomed: the page overflows and the container becomes the pan surface. */
+.sv-page.zoom { place-items: start center; }
+.sv-page.zoom img { max-width: none; max-height: none; width: 230%; cursor: zoom-out; }
+.sv-page iframe { width: 100%; height: 100%; border: 0; background: var(--paper); }
+.sv-note { color: var(--muted); font-size: 13px; text-align: center; padding: 0 24px; line-height: 1.7; }
+.sv-nav { flex: 0 0 auto; display: flex; justify-content: center; gap: 30px; padding-top: 6px; }
+
 /* ---- app header (fixed on every screen) ---- */
 .hdr {
   position: fixed; top: 0; left: 0; right: 0; z-index: 140;

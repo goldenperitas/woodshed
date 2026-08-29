@@ -87,7 +87,7 @@ export async function storageEstimate(): Promise<{ usage: number; quota: number 
  * gone the day iOS reclaims the storage, and no amount of syncing brings it
  * back — better to say so at the moment of adding.
  */
-export async function uploadMedia(file: File, kind: "audio" | "art"): Promise<string> {
+export async function uploadMedia(file: File, kind: "audio" | "art" | "sheet"): Promise<string> {
   const form = new FormData();
   form.set("kind", kind);
   form.set("file", file);

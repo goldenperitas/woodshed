@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { AUDIO_DIR, ART_DIR } from "@/lib/server/db";
+import { AUDIO_DIR, ART_DIR, SHEET_DIR } from "@/lib/server/db";
 
 // Where media is kept.
 //
@@ -17,6 +17,8 @@ import { AUDIO_DIR, ART_DIR } from "@/lib/server/db";
 const KINDS = {
   audio: { dir: AUDIO_DIR, prefix: "audio", ext: /^(mp3|m4a|aac|wav|ogg|opus|flac)$/ },
   art: { dir: ART_DIR, prefix: "art", ext: /^(png|jpe?g|webp|gif|avif)$/ },
+  // Lead sheets: a photo of the page, or a scan of several.
+  sheet: { dir: SHEET_DIR, prefix: "sheet", ext: /^(pdf|png|jpe?g|webp|heic|heif|avif)$/ },
 } as const;
 
 export async function POST(req: Request) {

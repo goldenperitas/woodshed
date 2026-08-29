@@ -37,6 +37,7 @@ const TABLE_BY_NAME: Record<SyncTable, SQLiteTable> = {
   recordings: schema.recordings,
   regions: schema.regions,
   notes: schema.notes,
+  sheets: schema.sheets,
   standard_groups: schema.standardGroups,
   review_log: schema.reviewLog,
 };

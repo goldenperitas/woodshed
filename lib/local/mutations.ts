@@ -16,11 +16,12 @@ import {
   recordings,
   regions,
   notes,
+  sheets,
   groups,
   standardGroups,
   reviewLog,
 } from "@/lib/sync/schema";
-import { eq, and, inArray, isNull } from "drizzle-orm";
+import { eq, and, asc, inArray, isNull } from "drizzle-orm";
 import { computeNextDue } from "@/lib/srs";
 import { lastIntervalDays } from "./queries";
 import { notifyChanged } from "./bus";
@@ -155,6 +156,12 @@ export async function deleteStandard(id: string) {
     await localDb.update(recordings).set(dead).where(inArray(recordings.id, ids));
   }
   await localDb.update(notes).set(dead).where(eq(notes.standardId, id));
+  const shts = await localDb
+    .select({ filePath: sheets.filePath })
+    .from(sheets)
+    .where(eq(sheets.standardId, id));
+  await localDb.update(sheets).set(dead).where(eq(sheets.standardId, id));
+  for (const sh of shts) await dropBlob(sh.filePath);
   await localDb.update(reviewLog).set(dead).where(eq(reviewLog.standardId, id));
   await localDb.update(standardGroups).set(dead).where(eq(standardGroups.standardId, id));
 
@@ -236,6 +243,76 @@ export async function deleteRecording(id: string, _standardId: string) {
   await localDb.update(regions).set(dead).where(eq(regions.recordingId, id));
   await localDb.update(recordings).set(dead).where(eq(recordings.id, id));
   if (rec) await dropBlob(rec.filePath);
+  notifyChanged();
+}
+
+// ---- lead sheets ----
+
+/** Appended at the end of the tune's reading order. */
+export async function addSheet(data: {
+  standardId: string;
+  filePath: string;
+  originalName: string | null;
+  kind: "image" | "pdf";
+}): Promise<string> {
+  const t = now();
+  const id = uid();
+  const existing = await localDb
+    .select({ sortOrder: sheets.sortOrder })
+    .from(sheets)
+    .where(and(eq(sheets.standardId, data.standardId), isNull(sheets.deletedAt)));
+  const last = existing.reduce((m, r) => Math.max(m, r.sortOrder), -1);
+  await localDb.insert(sheets).values({
+    id,
+    standardId: data.standardId,
+    filePath: data.filePath,
+    originalName: data.originalName,
+    kind: data.kind,
+    sortOrder: last + 1,
+    createdAt: t,
+    updatedAt: t,
+    dirty: 1,
+  });
+  notifyChanged();
+  return id;
+}
+
+export async function deleteSheet(id: string) {
+  const t = now();
+  const row = await localDb
+    .select({ filePath: sheets.filePath })
+    .from(sheets)
+    .where(eq(sheets.id, id))
+    .get();
+  await localDb
+    .update(sheets)
+    .set({ deletedAt: t, updatedAt: t, dirty: 1 })
+    .where(eq(sheets.id, id));
+  if (row) await dropBlob(row.filePath);
+  notifyChanged();
+}
+
+/** Swaps a page with its neighbour, which is all reordering ever needs here. */
+export async function moveSheet(standardId: string, id: string, dir: -1 | 1) {
+  const rows = await localDb
+    .select({ id: sheets.id, sortOrder: sheets.sortOrder })
+    .from(sheets)
+    .where(and(eq(sheets.standardId, standardId), isNull(sheets.deletedAt)))
+    .orderBy(asc(sheets.sortOrder), asc(sheets.createdAt));
+  const i = rows.findIndex((r) => r.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= rows.length) return;
+  // Rewritten from the array rather than swapped in place: rows that arrived
+  // from another device can share a sort_order, and a swap would keep the tie.
+  const order = rows.map((r) => r.id);
+  [order[i], order[j]] = [order[j], order[i]];
+  const t = now();
+  for (const [n, rowId] of order.entries()) {
+    await localDb
+      .update(sheets)
+      .set({ sortOrder: n, updatedAt: t, dirty: 1 })
+      .where(eq(sheets.id, rowId));
+  }
   notifyChanged();
 }
 

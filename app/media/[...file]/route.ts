@@ -2,7 +2,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { AUDIO_DIR, ART_DIR } from "@/lib/server/db";
+import { AUDIO_DIR, ART_DIR, SHEET_DIR } from "@/lib/server/db";
 
 // Serves the media the Mac holds.
 //
@@ -12,7 +12,7 @@ import { AUDIO_DIR, ART_DIR } from "@/lib/server/db";
 // request — which also puts Range handling here, and Safari will not scrub or
 // loop a take without real 206 responses.
 
-const ROOTS: Record<string, string> = { audio: AUDIO_DIR, art: ART_DIR };
+const ROOTS: Record<string, string> = { audio: AUDIO_DIR, art: ART_DIR, sheet: SHEET_DIR };
 
 const TYPES: Record<string, string> = {
   mp3: "audio/mpeg",
@@ -28,6 +28,9 @@ const TYPES: Record<string, string> = {
   webp: "image/webp",
   gif: "image/gif",
   avif: "image/avif",
+  heic: "image/heic",
+  heif: "image/heif",
+  pdf: "application/pdf",
 };
 
 export async function GET(req: Request, { params }: { params: Promise<{ file: string[] }> }) {

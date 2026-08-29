@@ -13,6 +13,7 @@ import {
   recordings,
   regions,
   notes,
+  sheets,
   groups,
   standardGroups,
   reviewLog,
@@ -125,6 +126,12 @@ export async function getStandard(id: string) {
     .where(and(eq(notes.standardId, id), alive(notes.deletedAt)))
     .orderBy(desc(notes.createdAt));
 
+  const shts = await localDb
+    .select()
+    .from(sheets)
+    .where(and(eq(sheets.standardId, id), alive(sheets.deletedAt)))
+    .orderBy(asc(sheets.sortOrder), asc(sheets.createdAt));
+
   const grpAll = await localDb
     .select()
     .from(groups)
@@ -147,6 +154,7 @@ export async function getStandard(id: string) {
     recordings: recs,
     regions: regs,
     notes: ns,
+    sheets: shts,
     allGroups: grpAll,
     memberGroupIds: new Set(memberRows.map((m) => m.groupId)),
     reviews,
