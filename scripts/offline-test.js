@@ -140,7 +140,10 @@ async function warmUp(ctx, { assets = false } = {}) {
   if (assets) {
     const cached = await page.evaluate(async (list) => {
       const out = {};
-      for (const a of list) out[a] = !!(await caches.match(a));
+      // ignoreSearch: the database worker is asked for by version
+      // (/db-worker.js?v=N), and what matters here is that a copy is on the
+      // device at all — that is what lets it open its library offline.
+      for (const a of list) out[a] = !!(await caches.match(a, { ignoreSearch: true }));
       return out;
     }, ["/sqlite/sqlite3.wasm", "/db-worker.js", "/", "/fonts/anton.woff2"]);
     for (const [asset, ok] of Object.entries(cached)) check("cached " + asset, ok);

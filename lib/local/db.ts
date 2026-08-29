@@ -21,10 +21,21 @@ let worker: Worker | null = null;
 let seq = 0;
 const pending = new Map<number, Pending>();
 
+/**
+ * Bump on every change to public/db-worker.js — its schema above all.
+ *
+ * The service worker keeps the worker cache-first and never revalidates it
+ * (it is large, and nothing renders until it has loaded), so without this the
+ * device goes on running last month's schema against this month's queries and
+ * fails with "no such table". The query string is part of the cache key, so a
+ * new value simply cannot be answered from the old entry.
+ */
+const WORKER_VERSION = "2";
+
 function getWorker(): Worker {
   if (worker) return worker;
-  logEvent("db.worker");
-  worker = new Worker("/db-worker.js", { type: "module" });
+  logEvent("db.worker", { v: WORKER_VERSION });
+  worker = new Worker(`/db-worker.js?v=${WORKER_VERSION}`, { type: "module" });
   installHandoff();
   worker.onmessage = (e: MessageEvent) => {
     const { id, ok, result, error } = e.data;

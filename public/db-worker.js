@@ -31,6 +31,10 @@ let generation = 0;
 // Foreign keys are deliberately OFF: a sync pull can deliver a child row
 // before its parent, and cascades would fight the tombstones. Referential
 // integrity is maintained by the app layer instead.
+//
+// Changing anything below means bumping WORKER_VERSION in lib/local/db.ts.
+// Devices cache this file forever; the version in its URL is what gets a new
+// copy onto them.
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS standards (
   id TEXT PRIMARY KEY,

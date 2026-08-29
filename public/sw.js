@@ -6,7 +6,7 @@
 // Media is NOT cached here — audio and artwork live in IndexedDB and play via
 // object URLs (see lib/offline.ts), which sidesteps Safari's Range quirks.
 
-const CACHE = "woodshed-v14";
+const CACHE = "woodshed-v15";
 // Jackets fetched from the Mac live in their own cache. The versioned cache is
 // emptied on every update — code and shells should be replaced wholesale — but
 // re-downloading artwork requires being online again, which is exactly what
@@ -24,9 +24,12 @@ const MEDIA_CACHE = "woodshed-media";
 // screen under another.
 const SHELL = "/";
 
+// The database worker is deliberately absent: it is requested with a version
+// query (see lib/local/db.ts) and gets cached under that key on the first
+// boot, which is always online. Precaching the bare URL would only keep a copy
+// nothing ever asks for — the very copy that used to go stale.
 const PRECACHE = [
   SHELL,
-  "/db-worker.js",
   "/sqlite/sqlite3.mjs",
   "/sqlite/sqlite3.wasm",
   "/manifest.json",
