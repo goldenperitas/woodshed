@@ -88,10 +88,13 @@ export async function updateStandardMeta(id: string, fd: FormData) {
   notifyChanged();
 }
 
+// Stored verbatim: trimming here rewrites the text under a caret that is
+// still in it — the trailing space you just typed disappears mid-phrase.
+// Only an entirely blank field counts as "no interpretation".
 export async function saveChords(id: string, text: string) {
   await localDb
     .update(standards)
-    .set({ chordInterpretation: text.trim() || null, ...touch() })
+    .set({ chordInterpretation: text.trim() ? text : null, ...touch() })
     .where(eq(standards.id, id));
   notifyChanged();
 }
@@ -99,7 +102,7 @@ export async function saveChords(id: string, text: string) {
 export async function saveLyrics(id: string, text: string) {
   await localDb
     .update(standards)
-    .set({ lyrics: text.trim() || null, ...touch() })
+    .set({ lyrics: text.trim() ? text : null, ...touch() })
     .where(eq(standards.id, id));
   notifyChanged();
 }
