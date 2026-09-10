@@ -13,7 +13,7 @@ import LocalError from "@/components/LocalError";
 import Woodshed from "@/components/Woodshed";
 import AudioUploader from "@/components/AudioUploader";
 import ArtworkUploader from "@/components/ArtworkUploader";
-import AutoSaveText from "@/components/AutoSaveText";
+import EditableText from "@/components/EditableText";
 import NotesSection from "@/components/NotesSection";
 import SheetsSection from "@/components/SheetsSection";
 import ReviewLog from "@/components/ReviewLog";
@@ -89,18 +89,31 @@ export default function Tune() {
           <SheetsSection standardId={std.id} sheets={sheetPages} />
         </section>
 
-        <section className="sec"><h4>コード解釈</h4>
-          <AutoSaveText initial={std.chordInterpretation ?? ""} onSave={saveChords.bind(null, std.id)}
-            placeholder={"自分の言葉で。例:\nA: | Cm7 | F7 | BbM7 | ... |\nブリッジは全音下のトゥーファイブ…"} minHeight={150} />
+        <section className="sec">
+          <EditableText
+            title="コード解釈"
+            value={std.chordInterpretation ?? ""}
+            onSave={saveChords.bind(null, std.id)}
+            placeholder={"自分の言葉で。例:\nA: | Cm7 | F7 | BbM7 | ... |\nブリッジは全音下のトゥーファイブ…"}
+            emptyLabel="コード進行を自分の言葉で書く"
+            draftKey={`chords:${std.id}`}
+            mono
+          />
         </section>
 
         <section className="sec"><h4>メモ</h4>
           <NotesSection standardId={std.id} notes={notes} />
         </section>
 
-        <section className="sec"><h4>歌詞（メロディ記憶用）</h4>
-          <AutoSaveText initial={std.lyrics ?? ""} onSave={saveLyrics.bind(null, std.id)}
-            placeholder="歌詞を書いておくとメロが定着しやすい" minHeight={110} />
+        <section className="sec">
+          <EditableText
+            title="歌詞（メロディ記憶用）"
+            value={std.lyrics ?? ""}
+            onSave={saveLyrics.bind(null, std.id)}
+            placeholder="歌詞を書いておくとメロが定着しやすい"
+            emptyLabel="歌詞を書いておくとメロが定着しやすい"
+            draftKey={`lyrics:${std.id}`}
+          />
         </section>
 
         <section className="sec"><h4>ステータス</h4>
