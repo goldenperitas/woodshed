@@ -12,6 +12,7 @@ import Booting from "@/components/Booting";
 import LocalError from "@/components/LocalError";
 import Woodshed from "@/components/Woodshed";
 import AudioUploader from "@/components/AudioUploader";
+import CollapsibleSection from "@/components/CollapsibleSection";
 import ArtworkUploader from "@/components/ArtworkUploader";
 import EditableText from "@/components/EditableText";
 import NotesSection from "@/components/NotesSection";
@@ -81,8 +82,10 @@ export default function Tune() {
 
         <Woodshed standard={std} recordings={recordings} regions={regions} />
 
-        <section className="sec"><h4>音源を追加</h4>
-          <AudioUploader standardId={std.id} />
+        <section className="sec">
+          <CollapsibleSection title="音源を追加" collapsible={recordings.length > 0}>
+            <AudioUploader standardId={std.id} />
+          </CollapsibleSection>
         </section>
 
         <section className="sec"><h4>リードシート</h4>

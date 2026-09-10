@@ -527,6 +527,14 @@ input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px;
   font-size: 12px; color: var(--muted); flex: 0 0 auto;
 }
 .sec-head-btn:hover { color: var(--accent); }
+/* Negative margins keep the heading where it sits in every other section
+   while the padding gives the toggle a thumb-sized row to be tapped on. */
+.sec-head-toggle {
+  width: 100%; background: transparent; border: 0; cursor: pointer; text-align: left;
+  padding: 12px 0; margin: -12px 0 -2px;
+}
+.sec-caret { margin-left: auto; color: var(--muted); flex: 0 0 auto; }
+.sec-head-toggle:hover .sec-caret { color: var(--accent); }
 
 /* Free text at rest: the whole thing, never inside its own scroll box. */
 .readtext { font-size: 14px; line-height: 1.9; color: #e6dcc6; white-space: pre-wrap; }
